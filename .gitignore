@@ -1,0 +1,17 @@
+# IDE / editor tooling
+.claude/
+.cursor/
+.github/skills/
+.vscode/
+.ai-dev-kit/
+.mcp.json
+.mcp.json.bak
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# Databricks
+.databricks/

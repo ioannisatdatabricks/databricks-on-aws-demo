@@ -1,0 +1,38 @@
+resources:
+  apps:
+    shopnow_ops_hub:
+      name: "shopnow-ops-hub"
+      description: "ShopNow Ops Hub — Live KPIs and AI Agent"
+
+      source_code_path: ../src/06-app
+
+      config:
+        command:
+          - "uvicorn"
+          - "app:app"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+        env:
+          - name: AGENT_ENDPOINT
+            value: "shopnow-ops-agent"
+          - name: LAKEBASE_PROJECT
+            value: "shopnow-lakebase"
+          - name: LAKEBASE_DATABASE
+            value: "databricks_postgres"
+          - name: LAKEBASE_BRANCH
+            value: "production"
+          - name: UC_CATALOG
+            value: ${var.catalog}
+          - name: UC_SCHEMA
+            value: ${var.schema}
+          - name: DATABRICKS_WAREHOUSE_ID
+            value: ${resources.sql_warehouses.shopnow_warehouse.id}
+
+      resources:
+        - name: shopnow-warehouse
+          sql_warehouse:
+            id: ${resources.sql_warehouses.shopnow_warehouse.id}
+            permission: CAN_USE
+

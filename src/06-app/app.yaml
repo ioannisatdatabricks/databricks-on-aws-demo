@@ -1,0 +1,23 @@
+command:
+  - "uvicorn"
+  - "app:app"
+  - "--host"
+  - "0.0.0.0"
+  - "--port"
+  - "8000"
+
+env:
+  - name: AGENT_ENDPOINT
+    value: "shopnow-ops-agent"
+  - name: LAKEBASE_PROJECT
+    value: "shopnow-lakebase"
+  - name: LAKEBASE_DATABASE
+    value: "databricks_postgres"
+  - name: LAKEBASE_BRANCH
+    value: "production"
+  - name: UC_CATALOG
+    value: "main"
+  - name: UC_SCHEMA
+    value: "aws_webinar_demo_dev"
+  - name: DATABRICKS_WAREHOUSE_ID
+    value: "4417c249e7583346"

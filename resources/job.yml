@@ -1,0 +1,100 @@
+resources:
+  jobs:
+    shopnow_orchestration:
+      name: "ShopNow — Full Demo Orchestration"
+      description: "Setup → Pipeline → Agent deploy → Reverse ETL — runs end-to-end"
+
+      # Serverless job — no cluster block needed
+      environments:
+        - environment_key: agent_env
+          spec:
+            environment_version: "4"
+            dependencies:
+              - databricks-langchain
+              - databricks-agents
+              - mlflow
+              - langchain
+              - langgraph
+
+        - environment_key: lakebase_env
+          spec:
+            environment_version: "4"
+            dependencies:
+              - "databricks-sdk>=0.89.0"
+              - psycopg2-binary
+
+      tasks:
+
+        - task_key: setup
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Generate synthetic data into Unity Catalog Volume"
+          notebook_task:
+            notebook_path: ../src/_resources/00-setup.py
+            base_parameters:
+              catalog:  ${var.catalog}
+              schema:   ${var.schema}
+              volume:   ${var.volume}
+
+        - task_key: run_pipeline
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Trigger the Lakeflow pipeline to build Bronze/Silver/Gold tables"
+          depends_on:
+            - task_key: setup
+          pipeline_task:
+            pipeline_id: ${resources.pipelines.shopnow_pipeline.id}
+            full_refresh: true
+
+        - task_key: deploy_agent
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Build and deploy the ShopNow Ops AI Agent to Model Serving"
+          depends_on:
+            - task_key: run_pipeline
+          environment_key: agent_env
+          notebook_task:
+            notebook_path: ../src/04-ai-agent/06-agent-creation.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema:  ${var.schema}
+
+        - task_key: reverse_etl
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Sync gold table KPIs to Lakebase Postgres"
+          depends_on:
+            - task_key: run_pipeline
+          environment_key: lakebase_env
+          notebook_task:
+            notebook_path: ../src/05-lakebase/07-reverse-etl-lakebase.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema:  ${var.schema}
+
+        - task_key: refresh_dashboard
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Refresh ShopNow Revenue Intelligence dashboard after pipeline"
+          depends_on:
+            - task_key: run_pipeline
+          dashboard_task:
+            dashboard_id: ${resources.dashboards.shopnow_revenue.id}
+            warehouse_id: ${resources.sql_warehouses.shopnow_warehouse.id}
+
+        - task_key: start_app
+          max_retries: 0
+          retry_on_timeout: false
+          description: "Restart the ShopNow Ops Hub app after all dependencies are ready"
+          depends_on:
+            - task_key: deploy_agent
+            - task_key: reverse_etl
+          notebook_task:
+            notebook_path: ../src/_resources/restart-app.py
+
+      # Run daily at 6 AM UTC
+      schedule:
+        quartz_cron_expression: "0 0 6 * * ?"
+        timezone_id: "UTC"
+        pause_status: PAUSED   # unpause in prod
+

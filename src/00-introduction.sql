@@ -1,0 +1,121 @@
+-- Databricks notebook source
+-- MAGIC %md
+-- MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="80px"/>
+-- MAGIC
+-- MAGIC # Data Intelligence with Databricks on AWS
+-- MAGIC ### A complete data + AI lifecycle demo for modern retail
+-- MAGIC
+-- MAGIC <br style="clear:both"/>
+-- MAGIC
+-- MAGIC <div style="background:#f8f8f8; border-left:4px solid #FF3621; padding:16px; border-radius:4px; margin-bottom:20px">
+-- MAGIC <b>Welcome to the AWS Workshop — April 7, 2026</b><br/>
+-- MAGIC This demo walks through a real-world e-commerce scenario from raw data ingestion all the way to a production AI application, entirely on Databricks on AWS.
+-- MAGIC </div>
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## 🏪 The Business Scenario
+-- MAGIC
+-- MAGIC **ShopNow** is a mid-size online retailer selling Electronics, Clothing, Home & Garden, Sports, and Books across 10 countries. Their data team needs to:
+-- MAGIC
+-- MAGIC 1. **Reliably ingest** orders, customer profiles, product catalog, and clickstream data into the Lakehouse
+-- MAGIC 2. **Govern** all data assets with fine-grained access control and full lineage
+-- MAGIC 3. **Analyse** revenue trends, cart abandonment, and top-selling products in real time
+-- MAGIC 4. **Build an AI Agent** that answers operational questions from pre-built gold tables
+-- MAGIC 5. **Sync key KPIs** back to their operational Postgres database (Lakebase) for downstream apps
+-- MAGIC 6. **Deploy an internal App** that combines dashboards, Genie, and the AI Agent in one UI
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## 🗺️ Architecture Overview
+-- MAGIC
+-- MAGIC ```
+-- MAGIC ┌──────────────────────────────────────────────────────────────────────────────┐
+-- MAGIC │                           AWS S3  (raw landing zone)                          │
+-- MAGIC │  customers (Parquet/CDC) │ orders (CSV) │ products (JSON) │ clickstream (JSON) │
+-- MAGIC └───────────────────────────────────┬──────────────────────────────────────────┘
+-- MAGIC                                     │  Lakeflow / Autoloader
+-- MAGIC                                     ▼
+-- MAGIC ┌──────────────────────────────────────────────────────────────────────────────┐
+-- MAGIC │               Spark Declarative Pipeline  (Bronze → Silver → Gold)            │
+-- MAGIC │  bronze_orders  │ bronze_customers  │ silver_orders  │ gold_revenue_daily      │
+-- MAGIC │  silver_customers │ gold_top_products │ gold_cart_abandonment                  │
+-- MAGIC └──────────────────────┬───────────────────────────────┬────────────────────────┘
+-- MAGIC                        │  Unity Catalog                │  Reverse ETL
+-- MAGIC                        ▼                               ▼
+-- MAGIC              ┌──────────────────┐          ┌──────────────────────┐
+-- MAGIC              │  AI/BI Dashboard  │          │  Lakebase (Postgres)  │
+-- MAGIC              │  Genie Space      │          │  kpi_summary table    │
+-- MAGIC              └────────┬─────────┘          └──────────────────────┘
+-- MAGIC                       │  Mosaic AI
+-- MAGIC                       ▼
+-- MAGIC              ┌──────────────────┐
+-- MAGIC              │   AI Agent        │
+-- MAGIC              │  (UC Functions)   │
+-- MAGIC              └────────┬─────────┘
+-- MAGIC                       │
+-- MAGIC                       ▼
+-- MAGIC              ┌──────────────────┐
+-- MAGIC              │  Databricks App   │
+-- MAGIC              │  ShopNow Ops Hub  │
+-- MAGIC              └──────────────────┘
+-- MAGIC ```
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## 📋 Demo Notebooks
+-- MAGIC
+-- MAGIC | Step | Notebook | What you'll see |
+-- MAGIC |------|----------|-----------------|
+-- MAGIC | 0 | `_resources/00-setup` | Generate synthetic data into UC Volume |
+-- MAGIC | 1 | `01-pipeline/01-declarative-pipeline` | Lakeflow pipeline: Bronze → Silver → Gold |
+-- MAGIC | 2 | `01-pipeline/02-pipeline-cdc` | CDC processing for customer updates |
+-- MAGIC | 3 | `02-governance/03-unity-catalog` | Tagging, row-level security, lineage |
+-- MAGIC | 4 | `03-aibi/04-dashboard` | AI/BI dashboard walkthrough |
+-- MAGIC | 5 | `03-aibi/05-genie-space` | Genie natural-language queries |
+-- MAGIC | 6 | `04-ai-agent/06-agent-creation` | Build & test a UC-function-backed agent |
+-- MAGIC | 7 | `05-lakebase/07-reverse-etl` | Push KPIs to Lakebase Postgres |
+-- MAGIC | 8 | `06-app/app.py` | Databricks App: ShopNow Ops Hub |
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## 🚀 Getting Started
+-- MAGIC
+-- MAGIC **Prerequisites:**
+-- MAGIC - Databricks workspace with Unity Catalog enabled
+-- MAGIC - Serverless compute enabled
+-- MAGIC - Lakebase feature enabled (for notebook 7)
+-- MAGIC - Databricks Apps enabled (for notebook 8)
+-- MAGIC
+-- MAGIC **Step 1:** Run `_resources/00-setup` to generate data
+-- MAGIC **Step 2:** Deploy the pipeline via the bundle: `databricks bundle deploy && databricks bundle run shopnow_pipeline`
+-- MAGIC **Step 3:** Follow notebooks 3–8 in order
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## 👥 The Team
+-- MAGIC
+-- MAGIC <table style="width:100%; border-collapse:collapse">
+-- MAGIC <tr>
+-- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
+-- MAGIC     <b>🔧 Alex</b><br/><i>Data Engineer</i><br/>Builds the pipeline
+-- MAGIC   </td>
+-- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
+-- MAGIC     <b>🔒 Sam</b><br/><i>Data Steward</i><br/>Governs access & PII
+-- MAGIC   </td>
+-- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
+-- MAGIC     <b>📊 Maya</b><br/><i>BI Analyst</i><br/>Builds dashboards & Genie
+-- MAGIC   </td>
+-- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
+-- MAGIC     <b>🤖 Leo</b><br/><i>AI/ML Engineer</i><br/>Creates the agent
+-- MAGIC   </td>
+-- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
+-- MAGIC     <b>💻 Priya</b><br/><i>App Developer</i><br/>Ships the ops app
+-- MAGIC   </td>
+-- MAGIC </tr>
+-- MAGIC </table>
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC **Ready? Let's go → [01-pipeline/01-declarative-pipeline]($./01-pipeline/01-declarative-pipeline)**

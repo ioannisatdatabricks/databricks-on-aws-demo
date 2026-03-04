@@ -1,0 +1,328 @@
+{
+  "datasets": [
+    {
+      "name": "revenue_trend",
+      "displayName": "Revenue Trend (Last 90 Days)",
+      "query": "SELECT order_day, SUM(total_revenue) AS revenue, SUM(order_count) AS orders, AVG(avg_order_value) AS avg_order_value FROM gold_revenue_daily WHERE order_day >= DATEADD(day, -90, (SELECT MAX(order_day) FROM gold_revenue_daily)) GROUP BY order_day ORDER BY order_day"
+    },
+    {
+      "name": "revenue_by_country",
+      "displayName": "Revenue by Country",
+      "query": "SELECT ship_country AS country, SUM(total_revenue) AS total_revenue, SUM(order_count) AS total_orders, ROUND(SUM(returns) / NULLIF(SUM(order_count), 0) * 100, 1) AS return_rate_pct FROM gold_revenue_daily GROUP BY ship_country ORDER BY total_revenue DESC"
+    },
+    {
+      "name": "top_products",
+      "displayName": "Top 10 Products",
+      "query": "SELECT product_name, category, brand, units_sold, total_revenue, margin_pct, return_rate_pct FROM gold_top_products ORDER BY total_revenue DESC LIMIT 10"
+    },
+    {
+      "name": "cart_abandonment",
+      "displayName": "Cart Abandonment Trend",
+      "query": "SELECT DATE(session_start) AS day, COUNT(*) AS total_sessions, SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) AS abandoned_sessions, ROUND(SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1) AS abandonment_rate_pct FROM gold_cart_abandonment GROUP BY DATE(session_start) ORDER BY day"
+    },
+    {
+      "name": "customer_ltv",
+      "displayName": "Customer Segment LTV",
+      "query": "SELECT segment, country, COUNT(customer_id) AS customer_count, ROUND(AVG(lifetime_value), 2) AS avg_ltv, ROUND(AVG(total_orders), 1) AS avg_orders, SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active_customers FROM gold_customer_ltv GROUP BY segment, country ORDER BY avg_ltv DESC"
+    }
+  ],
+  "pages": [
+    {
+      "name": "overview",
+      "displayName": "ShopNow Revenue Intelligence",
+      "layout": [
+        {
+          "position": { "x": 0, "y": 0, "width": 6, "height": 1 },
+          "widget": {
+            "name": "title",
+            "textbox_spec": "# ShopNow Revenue Intelligence"
+          }
+        },
+        {
+          "position": { "x": 0, "y": 1, "width": 6, "height": 1 },
+          "widget": {
+            "name": "subtitle",
+            "textbox_spec": "Daily & weekly revenue, top products, cart abandonment, and customer LTV. Built on gold tables."
+          }
+        },
+        {
+          "position": { "x": 0, "y": 2, "width": 2, "height": 3 },
+          "widget": {
+            "name": "total-revenue",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "revenue_trend",
+                  "disaggregated": false,
+                  "fields": [
+                    { "name": "sum(revenue)", "expression": "SUM(`revenue`)" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(revenue)", "displayName": "Total Revenue (90d)" }
+              },
+              "frame": { "showTitle": true, "title": "Total Revenue (90d)" }
+            }
+          }
+        },
+        {
+          "position": { "x": 2, "y": 2, "width": 2, "height": 3 },
+          "widget": {
+            "name": "total-orders",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "revenue_trend",
+                  "disaggregated": false,
+                  "fields": [
+                    { "name": "sum(orders)", "expression": "SUM(`orders`)" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "sum(orders)", "displayName": "Total Orders (90d)" }
+              },
+              "frame": { "showTitle": true, "title": "Total Orders (90d)" }
+            }
+          }
+        },
+        {
+          "position": { "x": 4, "y": 2, "width": 2, "height": 3 },
+          "widget": {
+            "name": "avg-order-value",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "revenue_trend",
+                  "disaggregated": false,
+                  "fields": [
+                    { "name": "avg(avg_order_value)", "expression": "AVG(`avg_order_value`)" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "counter",
+              "encodings": {
+                "value": { "fieldName": "avg(avg_order_value)", "displayName": "Avg Order Value" }
+              },
+              "frame": { "showTitle": true, "title": "Avg Order Value" }
+            }
+          }
+        },
+        {
+          "position": { "x": 0, "y": 5, "width": 6, "height": 5 },
+          "widget": {
+            "name": "revenue-trend-chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "revenue_trend",
+                  "disaggregated": true,
+                  "fields": [
+                    { "name": "order_day", "expression": "`order_day`" },
+                    { "name": "revenue", "expression": "`revenue`" },
+                    { "name": "orders", "expression": "`orders`" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "order_day", "scale": { "type": "temporal" }, "displayName": "Day" },
+                "y": { "fieldName": "revenue", "scale": { "type": "quantitative" }, "displayName": "Revenue" },
+                "label": { "show": false }
+              },
+              "frame": { "showTitle": true, "title": "Revenue Trend (Last 90 Days)" }
+            }
+          }
+        },
+        {
+          "position": { "x": 0, "y": 10, "width": 6, "height": 1 },
+          "widget": {
+            "name": "section-countries",
+            "textbox_spec": "## Revenue by Country"
+          }
+        },
+        {
+          "position": { "x": 0, "y": 11, "width": 6, "height": 5 },
+          "widget": {
+            "name": "revenue-by-country-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "revenue_by_country",
+                  "disaggregated": true,
+                  "fields": [
+                    { "name": "country", "expression": "`country`" },
+                    { "name": "total_revenue", "expression": "`total_revenue`" },
+                    { "name": "total_orders", "expression": "`total_orders`" },
+                    { "name": "return_rate_pct", "expression": "`return_rate_pct`" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "country", "displayName": "Country" },
+                  { "fieldName": "total_revenue", "displayName": "Total Revenue" },
+                  { "fieldName": "total_orders", "displayName": "Total Orders" },
+                  { "fieldName": "return_rate_pct", "displayName": "Return Rate %" }
+                ]
+              },
+              "frame": { "showTitle": true, "title": "Revenue by Country" }
+            }
+          }
+        },
+        {
+          "position": { "x": 0, "y": 16, "width": 6, "height": 1 },
+          "widget": {
+            "name": "section-products",
+            "textbox_spec": "## Top 10 Products by Revenue"
+          }
+        },
+        {
+          "position": { "x": 0, "y": 17, "width": 6, "height": 6 },
+          "widget": {
+            "name": "top-products-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "top_products",
+                  "disaggregated": true,
+                  "fields": [
+                    { "name": "product_name", "expression": "`product_name`" },
+                    { "name": "category", "expression": "`category`" },
+                    { "name": "brand", "expression": "`brand`" },
+                    { "name": "units_sold", "expression": "`units_sold`" },
+                    { "name": "total_revenue", "expression": "`total_revenue`" },
+                    { "name": "margin_pct", "expression": "`margin_pct`" },
+                    { "name": "return_rate_pct", "expression": "`return_rate_pct`" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "product_name", "displayName": "Product" },
+                  { "fieldName": "category", "displayName": "Category" },
+                  { "fieldName": "brand", "displayName": "Brand" },
+                  { "fieldName": "units_sold", "displayName": "Units Sold" },
+                  { "fieldName": "total_revenue", "displayName": "Revenue" },
+                  { "fieldName": "margin_pct", "displayName": "Margin %" },
+                  { "fieldName": "return_rate_pct", "displayName": "Return Rate %" }
+                ]
+              },
+              "frame": { "showTitle": true, "title": "Top 10 Products" }
+            }
+          }
+        },
+        {
+          "position": { "x": 0, "y": 23, "width": 6, "height": 1 },
+          "widget": {
+            "name": "section-abandonment",
+            "textbox_spec": "## Cart Abandonment Trend"
+          }
+        },
+        {
+          "position": { "x": 0, "y": 24, "width": 6, "height": 5 },
+          "widget": {
+            "name": "cart-abandonment-chart",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "cart_abandonment",
+                  "disaggregated": true,
+                  "fields": [
+                    { "name": "day", "expression": "`day`" },
+                    { "name": "abandonment_rate_pct", "expression": "`abandonment_rate_pct`" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 3,
+              "widgetType": "line",
+              "encodings": {
+                "x": { "fieldName": "day", "scale": { "type": "temporal" }, "displayName": "Day" },
+                "y": { "fieldName": "abandonment_rate_pct", "scale": { "type": "quantitative" }, "displayName": "Abandonment %" },
+                "label": { "show": false }
+              },
+              "frame": { "showTitle": true, "title": "Cart Abandonment Rate Over Time" }
+            }
+          }
+        },
+        {
+          "position": { "x": 0, "y": 29, "width": 6, "height": 1 },
+          "widget": {
+            "name": "section-ltv",
+            "textbox_spec": "## Customer Segment LTV"
+          }
+        },
+        {
+          "position": { "x": 0, "y": 30, "width": 6, "height": 6 },
+          "widget": {
+            "name": "customer-ltv-table",
+            "queries": [
+              {
+                "name": "main_query",
+                "query": {
+                  "datasetName": "customer_ltv",
+                  "disaggregated": true,
+                  "fields": [
+                    { "name": "segment", "expression": "`segment`" },
+                    { "name": "country", "expression": "`country`" },
+                    { "name": "customer_count", "expression": "`customer_count`" },
+                    { "name": "avg_ltv", "expression": "`avg_ltv`" },
+                    { "name": "avg_orders", "expression": "`avg_orders`" },
+                    { "name": "active_customers", "expression": "`active_customers`" }
+                  ]
+                }
+              }
+            ],
+            "spec": {
+              "version": 2,
+              "widgetType": "table",
+              "encodings": {
+                "columns": [
+                  { "fieldName": "segment", "displayName": "Segment" },
+                  { "fieldName": "country", "displayName": "Country" },
+                  { "fieldName": "customer_count", "displayName": "Customers" },
+                  { "fieldName": "avg_ltv", "displayName": "Avg LTV" },
+                  { "fieldName": "avg_orders", "displayName": "Avg Orders" },
+                  { "fieldName": "active_customers", "displayName": "Active" }
+                ]
+              },
+              "frame": { "showTitle": true, "title": "Customer Segment LTV" }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

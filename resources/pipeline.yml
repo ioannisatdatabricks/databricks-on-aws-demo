@@ -1,0 +1,25 @@
+resources:
+  pipelines:
+    shopnow_pipeline:
+      name: "ShopNow — Declarative Pipeline (Bronze→Silver→Gold)"
+
+      # Serverless — no cluster config needed
+      serverless: true
+
+      catalog: ${var.catalog}
+      schema:  ${var.schema}
+
+      libraries:
+        - notebook:
+            path: ../src/01-pipeline/01-declarative-pipeline.sql
+        - notebook:
+            path: ../src/01-pipeline/02-pipeline-cdc.sql
+
+      configuration:
+        catalog:  ${var.catalog}
+        schema:   ${var.schema}
+        volume:   ${var.volume}
+
+      continuous: false   # triggered mode; set true for streaming in prod
+
+      development: true
