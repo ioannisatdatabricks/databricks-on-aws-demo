@@ -85,12 +85,20 @@ resources:
         - task_key: start_app
           max_retries: 0
           retry_on_timeout: false
-          description: "Restart the ShopNow Ops Hub app after all dependencies are ready"
+          description: "Grant SP access and restart the ShopNow Ops Hub app"
           depends_on:
             - task_key: deploy_agent
             - task_key: reverse_etl
+          environment_key: lakebase_env
           notebook_task:
             notebook_path: ../src/_resources/restart-app.py
+            base_parameters:
+              catalog:          ${var.catalog}
+              schema:           ${var.schema}
+              source_path:      ${workspace.root_path}/files/src/06-app
+              agent_endpoint:   shopnow-ops-agent
+              lakebase_project: shopnow-lakebase
+              lakebase_branch:  production
 
       # Run daily at 6 AM UTC
       schedule:

@@ -131,6 +131,41 @@ if not compute_path:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## Step 2b — Ensure Lakebase Schema Exists
+# MAGIC
+# MAGIC The synced tables will be created in a Postgres schema matching the UC schema name.
+# MAGIC If the schema doesn't exist yet (e.g. synced tables haven't been created via the UI),
+# MAGIC we create it so that the subsequent SP grants don't fail.
+
+# COMMAND ----------
+
+import psycopg2
+
+endpoint_info = w.postgres.get_endpoint(name=compute_path)
+host = endpoint_info.status.hosts.host if (endpoint_info.status and endpoint_info.status.hosts) else None
+if not host:
+    raise RuntimeError(f"Lakebase endpoint {compute_path} has no host")
+
+cred = w.postgres.generate_database_credential(endpoint=compute_path)
+email = w.current_user.me().user_name
+
+conn = psycopg2.connect(
+    host=host, port=5432, dbname="databricks_postgres",
+    user=email, password=cred.token, sslmode="require",
+)
+conn.autocommit = True
+cur = conn.cursor()
+cur.execute(f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = '{schema}'")
+if cur.fetchone():
+    print(f"Schema '{schema}' already exists in Lakebase.")
+else:
+    cur.execute(f'CREATE SCHEMA "{schema}"')
+    print(f"Schema '{schema}' created in Lakebase.")
+conn.close()
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Step 3 — Verify Lakebase is Ready
 # MAGIC
 # MAGIC Confirm the project and endpoint are healthy. The synced tables will populate
@@ -138,9 +173,7 @@ if not compute_path:
 
 # COMMAND ----------
 
-endpoint_info = w.postgres.get_endpoint(name=compute_path)
 state = endpoint_info.status.current_state if endpoint_info.status else "unknown"
-host = endpoint_info.status.hosts.host if (endpoint_info.status and endpoint_info.status.hosts) else None
 
 print(f"Project       : {PROJECT_NAME}")
 print(f"Branch        : {BRANCH_NAME}")
@@ -151,71 +184,15 @@ print(f"\nLakebase is ready for synced tables.")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 4 — Grant App Service Principal Access to Lakebase
-# MAGIC
-# MAGIC The ShopNow Ops Hub app runs as a Databricks service principal. For it to query
-# MAGIC the synced tables in Lakebase, we need to:
-# MAGIC 1. Ensure the SP has `USE CATALOG` and `USE SCHEMA` in Unity Catalog
-# MAGIC 2. Create a Postgres role for the SP and grant `SELECT` on the synced tables schema
-
-# COMMAND ----------
-
-import psycopg2
-
-APP_NAME = "shopnow-ops-hub"
-
-# Look up the app's service principal client ID
-app_info = w.apps.get(name=APP_NAME)
-sp_client_id = app_info.service_principal_client_id
-print(f"App SP client ID: {sp_client_id}")
-
-# 1. Grant UC permissions so the SP can also use the SQL warehouse fallback
-spark.sql(f"GRANT USE CATALOG ON CATALOG {catalog} TO `{sp_client_id}`")
-spark.sql(f"GRANT USE SCHEMA ON SCHEMA {catalog}.{schema} TO `{sp_client_id}`")
-spark.sql(f"GRANT SELECT ON SCHEMA {catalog}.{schema} TO `{sp_client_id}`")
-print("UC grants applied.")
-
-# 2. Generate Lakebase credential (as current user) and grant PG access to the SP
-cred = w.postgres.generate_database_credential(endpoint=compute_path)
-email = w.current_user.me().user_name
-
-conn = psycopg2.connect(
-    host=host, port=5432, dbname="databricks_postgres",
-    user=email, password=cred.token, sslmode="require",
-)
-conn.autocommit = True
-cur = conn.cursor()
-
-# Create role if it doesn't exist
-cur.execute(f"""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{sp_client_id}') THEN
-            CREATE ROLE "{sp_client_id}" LOGIN;
-        END IF;
-    END
-    $$;
-""")
-cur.execute(f'GRANT USAGE ON SCHEMA {schema} TO "{sp_client_id}"')
-cur.execute(f'GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO "{sp_client_id}"')
-cur.execute(f'ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON TABLES TO "{sp_client_id}"')
-conn.close()
-
-print(f"Lakebase Postgres grants applied for SP '{sp_client_id}' on schema '{schema}'.")
-
-# COMMAND ----------
-
-# MAGIC %md
 # MAGIC ## Summary
 # MAGIC
 # MAGIC | Step | What happened |
 # MAGIC |------|--------------|
 # MAGIC | 1 | Waited for **bundle-created** Lakebase project and its default branch endpoint |
 # MAGIC | 2 | **Synced Tables** to be created via UI for 3 gold tables (snapshot mode) |
+# MAGIC | 2b | Ensured Lakebase Postgres schema exists |
 # MAGIC | 3 | Lakebase endpoint verified and ready for connections |
-# MAGIC | 4 | Granted **app service principal** UC and Postgres permissions on synced tables |
 # MAGIC
-# MAGIC Once the synced tables are created, the ShopNow app can query `gold_revenue_daily_synced`,
-# MAGIC `gold_top_products_synced`, and `gold_customer_ltv_synced` in the `databricks_postgres` database.
+# MAGIC App service principal grants are handled by the **restart-app** task.
 # MAGIC
 # MAGIC **Next** [06-app/app.py — ShopNow Ops Hub Databricks App]($../06-app/app)

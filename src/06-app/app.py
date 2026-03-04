@@ -10,64 +10,39 @@ Deploy:       databricks bundle deploy && databricks bundle run shopnow_app
 """
 
 import asyncio
+import logging
 import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
 import psycopg2.extras
 
+logger = logging.getLogger("shopnow")
+
 # ---------------------------------------------------------------------------
 # Configuration (injected by Databricks Apps as environment variables)
 # ---------------------------------------------------------------------------
-AGENT_ENDPOINT      = os.environ.get("AGENT_ENDPOINT", "shopnow-ops-agent")
-LAKEBASE_PROJECT    = os.environ.get("LAKEBASE_PROJECT", "shopnow-lakebase")
-LAKEBASE_DATABASE   = os.environ.get("LAKEBASE_DATABASE", "databricks_postgres")
-LAKEBASE_BRANCH     = os.environ.get("LAKEBASE_BRANCH", "production")
-UC_CATALOG          = os.environ.get("UC_CATALOG", "main")
-UC_SCHEMA           = os.environ.get("UC_SCHEMA", "aws_webinar_demo_dev")
+AGENT_ENDPOINT = os.environ["AGENT_ENDPOINT"]
+UC_SCHEMA      = os.environ["UC_SCHEMA"]
 
-# Resolved Lakebase endpoint (from bundle-created project); cached after first lookup
-_lakebase_host: str | None = None
-_lakebase_endpoint_path: str | None = None
-
-def _resolve_lakebase_endpoint() -> tuple[str | None, str | None]:
-    """Resolve the Lakebase endpoint host and path for the bundle-created project via SDK. Returns (host, endpoint_path)."""
-    global _lakebase_host, _lakebase_endpoint_path
-    if _lakebase_host is not None and _lakebase_endpoint_path is not None:
-        return _lakebase_host, _lakebase_endpoint_path
-    try:
-        from databricks.sdk import WorkspaceClient
-        w = WorkspaceClient()
-        branch_path = f"projects/{LAKEBASE_PROJECT}/branches/{LAKEBASE_BRANCH}"
-        endpoints = list(w.postgres.list_endpoints(parent=branch_path))
-        if not endpoints:
-            return None, None
-        endpoint_path = endpoints[0].name
-        ep = w.postgres.get_endpoint(name=endpoint_path)
-        if ep and ep.status and ep.status.hosts:
-            _lakebase_host = ep.status.hosts.host
-            _lakebase_endpoint_path = endpoint_path
-            return _lakebase_host, _lakebase_endpoint_path
-    except Exception:
-        pass
-    return None, None
-
+# ---------------------------------------------------------------------------
+# Lakebase connection (credentials injected via app.yaml env vars)
+# ---------------------------------------------------------------------------
 
 def _get_lakebase_conn():
-    """Get a psycopg2 connection to Lakebase using OAuth credentials. Uses the bundle-created project."""
-    host, endpoint_path = _resolve_lakebase_endpoint()
-    if not host or not endpoint_path:
-        return None
-    from databricks.sdk import WorkspaceClient
-    w = WorkspaceClient()
-    cred = w.postgres.generate_database_credential(endpoint=endpoint_path)
-    email = w.current_user.me().user_name
-    conn = psycopg2.connect(
-        host=host, port=5432, dbname=LAKEBASE_DATABASE,
-        user=email, password=cred.token, sslmode="require",
+    """Get a psycopg2 connection to Lakebase using injected PG* env vars."""
+    pg_host = os.environ.get("PGHOST", "")
+    if not pg_host or pg_host == "pending":
+        raise RuntimeError("Lakebase not configured yet — run the orchestration job first")
+    return psycopg2.connect(
+        host=pg_host,
+        port=os.environ.get("PGPORT", "5432"),
+        dbname=os.environ.get("PGDATABASE", "databricks_postgres"),
+        user=os.environ["PGUSER"],
+        password=os.environ["PGPASSWORD"],
+        sslmode="require",
         options=f"-c search_path={UC_SCHEMA},public",
     )
-    return conn
 
 app = FastAPI(title="ShopNow Ops Hub")
 
@@ -212,31 +187,25 @@ function escapeHtml(s) {
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
-async def index(request: Request):
-    from jinja2 import Environment
-    env = Environment()
-    tpl = env.from_string(MAIN_HTML)
-    html = tpl.render()
-    return HTMLResponse(html)
+async def index():
+    return HTMLResponse(MAIN_HTML)
 
 
 def _fetch_kpis_from_lakebase() -> dict | None:
     """Try to fetch KPIs from Lakebase synced tables. Returns dict or None on failure."""
     try:
         conn = _get_lakebase_conn()
-        if conn is None:
-            return None
         with conn:
             with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-                cur.execute("""
+                cur.execute(f"""
                     SELECT COALESCE(SUM(total_revenue), 0) AS revenue,
                            COALESCE(SUM(order_count), 0)   AS orders
-                    FROM   gold_revenue_daily_synced
+                    FROM   {UC_SCHEMA}.gold_revenue_daily_synced
                 """)
                 rev_row = cur.fetchone()
-                cur.execute("""
+                cur.execute(f"""
                     SELECT ROUND(AVG(lifetime_value)::numeric, 2) AS avg_ltv
-                    FROM   gold_customer_ltv_synced
+                    FROM   {UC_SCHEMA}.gold_customer_ltv_synced
                     WHERE  lifetime_value > 0
                 """)
                 ltv_row = cur.fetchone()
@@ -245,76 +214,24 @@ def _fetch_kpis_from_lakebase() -> dict | None:
             "orders": int(rev_row["orders"]),
             "ltv": float(ltv_row["avg_ltv"] or 0),
         }
-    except Exception:
-        return None
-
-
-def _fetch_kpis_from_sql_warehouse() -> dict | None:
-    """Fallback: fetch KPIs directly from Unity Catalog gold tables via SDK."""
-    import logging
-    logger = logging.getLogger("shopnow")
-    try:
-        from databricks.sdk import WorkspaceClient
-        from databricks.sdk.service.sql import Disposition, Format
-        w = WorkspaceClient()
-        wh_id = os.environ.get("DATABRICKS_WAREHOUSE_ID", "")
-
-        rev = w.statement_execution.execute_statement(
-            statement=f"""
-                SELECT COALESCE(SUM(total_revenue), 0) AS revenue,
-                       COALESCE(SUM(order_count), 0)   AS orders
-                FROM   {UC_CATALOG}.{UC_SCHEMA}.gold_revenue_daily
-            """,
-            warehouse_id=wh_id,
-            wait_timeout="50s",
-            disposition=Disposition.INLINE,
-            format=Format.JSON_ARRAY,
-        )
-        if rev.status.state.value != "SUCCEEDED":
-            logger.error(f"Revenue query status: {rev.status}")
-            return None
-        rev_row = rev.result.data_array[0]
-        rev_cols = [c.name for c in rev.manifest.schema.columns]
-        rev_dict = dict(zip(rev_cols, rev_row))
-
-        ltv = w.statement_execution.execute_statement(
-            statement=f"""
-                SELECT ROUND(AVG(lifetime_value), 2) AS avg_ltv
-                FROM   {UC_CATALOG}.{UC_SCHEMA}.gold_customer_ltv
-                WHERE  lifetime_value > 0
-            """,
-            warehouse_id=wh_id,
-            wait_timeout="50s",
-            disposition=Disposition.INLINE,
-            format=Format.JSON_ARRAY,
-        )
-        if ltv.status.state.value != "SUCCEEDED":
-            logger.error(f"LTV query status: {ltv.status}")
-            return None
-        ltv_row = ltv.result.data_array[0]
-        ltv_cols = [c.name for c in ltv.manifest.schema.columns]
-        ltv_dict = dict(zip(ltv_cols, ltv_row))
-
-        return {
-            "revenue": float(rev_dict["revenue"]),
-            "orders": int(float(rev_dict["orders"])),
-            "ltv": float(ltv_dict["avg_ltv"] or 0),
-        }
+    except psycopg2.OperationalError as e:
+        logger.error(f"Lakebase KPI fetch failed: {e}")
+        return {"error": str(e)}
     except Exception as e:
-        logger.error(f"SQL warehouse KPI fallback failed: {e}")
-        return None
+        logger.error(f"Lakebase KPI fetch failed: {e}")
+        return {"error": str(e)}
 
 
 @app.get("/api/kpis")
 async def get_kpis():
-    """Read KPI summary — tries Lakebase first, falls back to SQL warehouse, then mock data."""
-    data = await asyncio.to_thread(_fetch_kpis_from_lakebase)
-    source = "Lakebase"
-    if data is None:
-        data = await asyncio.to_thread(_fetch_kpis_from_sql_warehouse)
-        source = "SQL Warehouse"
-    if data is None:
-        return HTMLResponse(_mock_kpi_cards())
+    """Read KPI summary from Lakebase."""
+    try:
+        data = await asyncio.to_thread(_fetch_kpis_from_lakebase)
+    except Exception as e:
+        return HTMLResponse(f'<div class="kpi-card" style="grid-column:1/-1;"><div class="value" style="font-size:14px;color:#888;">Error: {str(e)[:200]}</div></div>')
+    if data is None or "error" in data:
+        err = data.get("error", "Unknown") if data else "Connection failed"
+        return HTMLResponse(f'<div class="kpi-card" style="grid-column:1/-1;"><div class="value" style="font-size:14px;color:#888;">Database unavailable: {err[:200]}</div></div>')
 
     revenue = data["revenue"]
     orders  = data["orders"]
@@ -378,11 +295,3 @@ def _render_kpi_cards(cards: list) -> str:
     return html
 
 
-def _mock_kpi_cards() -> str:
-    """Fallback mock cards when Lakebase is not configured."""
-    return _render_kpi_cards([
-        ("Monthly Revenue",  "$2,847,391",  "↑ 12% vs last month", "up"),
-        ("Monthly Orders",   "18,234",       "↑ 8% vs last month",  "up"),
-        ("Avg Order Value",  "$156.15",     "Across all countries", ""),
-        ("Avg Customer LTV", "$423.80",     "Active customers",      ""),
-    ])
