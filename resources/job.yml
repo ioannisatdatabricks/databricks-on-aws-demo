@@ -93,12 +93,11 @@ resources:
           notebook_task:
             notebook_path: ../src/_resources/restart-app.py
             base_parameters:
-              catalog:          ${var.catalog}
-              schema:           ${var.schema}
-              source_path:      ${workspace.root_path}/files/src/06-app
-              agent_endpoint:   shopnow-ops-agent
-              lakebase_project: shopnow-lakebase
-              lakebase_branch:  production
+              catalog:           ${var.catalog}
+              schema:            ${var.schema}
+              source_path:       ${workspace.root_path}/files/src/06-app
+              agent_endpoint:    shopnow-ops-agent
+              lakebase_instance: shopnow-lakebase
 
       # Run daily at 6 AM UTC
       schedule:

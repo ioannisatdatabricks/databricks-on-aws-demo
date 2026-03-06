@@ -19,9 +19,5 @@ resources:
             value: "shopnow-ops-agent"
           - name: UC_SCHEMA
             value: ${var.schema}
-          - name: PGHOST
-            value: "pending"
-          - name: PGUSER
-            value: "pending"
-          - name: PGPASSWORD
-            value: "pending"
+          - name: LAKEBASE_INSTANCE
+            value: "shopnow-lakebase"

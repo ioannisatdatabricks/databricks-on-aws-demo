@@ -3,34 +3,30 @@
 # MAGIC # Restart ShopNow Ops Hub App
 # MAGIC
 # MAGIC This task runs after all dependencies (agent, Lakebase) are ready.
-# MAGIC It grants the app's service principal access to UC and Lakebase,
+# MAGIC It grants the app's service principal access to UC,
 # MAGIC writes the app config, then deploys the app.
 
 # COMMAND ----------
 
 dbutils.widgets.text("catalog",          "", "Catalog")
 dbutils.widgets.text("schema",           "", "Schema")
-dbutils.widgets.text("source_path",      "",                  "App source code path")
-dbutils.widgets.text("agent_endpoint",   "",                  "Agent serving endpoint name")
-dbutils.widgets.text("lakebase_project", "",                  "Lakebase project name")
-dbutils.widgets.text("lakebase_branch",  "",                  "Lakebase branch name")
+dbutils.widgets.text("source_path",      "", "App source code path")
+dbutils.widgets.text("agent_endpoint",   "", "Agent serving endpoint name")
+dbutils.widgets.text("lakebase_instance","", "Lakebase Provisioned instance name")
 
 catalog          = dbutils.widgets.get("catalog")
 schema           = dbutils.widgets.get("schema")
 source_path      = dbutils.widgets.get("source_path")
 agent_endpoint   = dbutils.widgets.get("agent_endpoint")
-lakebase_project = dbutils.widgets.get("lakebase_project")
-lakebase_branch  = dbutils.widgets.get("lakebase_branch")
+lakebase_instance = dbutils.widgets.get("lakebase_instance")
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 1 — Grant App Service Principal Access
+# MAGIC ## Step 1 — Grant App Service Principal UC Access
 
 # COMMAND ----------
 
-import secrets
-import psycopg2
 from databricks.sdk import WorkspaceClient
 
 w = WorkspaceClient()
@@ -42,58 +38,66 @@ app_info = w.apps.get(name=APP_NAME)
 sp_client_id = app_info.service_principal_client_id
 print(f"App SP client ID: {sp_client_id}")
 
-# 1. Grant UC permissions
+# Grant UC permissions
 spark.sql(f"GRANT USE CATALOG ON CATALOG {catalog} TO `{sp_client_id}`")
 spark.sql(f"GRANT USE SCHEMA ON SCHEMA {catalog}.{schema} TO `{sp_client_id}`")
 spark.sql(f"GRANT SELECT ON SCHEMA {catalog}.{schema} TO `{sp_client_id}`")
 print("UC grants applied.")
 
-# 2. Grant Lakebase Postgres access to the SP with a native password
-branch_path = f"projects/{lakebase_project}/branches/{lakebase_branch}"
-endpoints = list(w.postgres.list_endpoints(parent=branch_path))
-if not endpoints:
-    raise RuntimeError(f"No Lakebase endpoint found for {branch_path}")
+# COMMAND ----------
 
-endpoint = endpoints[0]
-pg_host = endpoint.status.hosts.host if (endpoint.status and endpoint.status.hosts) else None
-if not pg_host:
-    raise RuntimeError(f"Lakebase endpoint {endpoint.name} has no host")
+# MAGIC %md
+# MAGIC ## Step 2 — Grant App Service Principal Lakebase Access
+# MAGIC
+# MAGIC The SP needs a `databricks_auth` security label on its PG role so Lakebase
+# MAGIC accepts its OAuth tokens. We also grant SELECT on the synced-tables schema.
 
-cred = w.postgres.generate_database_credential(endpoint=endpoint.name)
-email = w.current_user.me().user_name
+# COMMAND ----------
+
+import uuid
+import psycopg2
+
+# Generate an OAuth token (as the current user) to connect to Lakebase
+cred = w.database.generate_database_credential(
+    request_id=str(uuid.uuid4()),
+    instance_names=[lakebase_instance],
+)
+instance = w.database.get_database_instance(name=lakebase_instance)
+pg_host = instance.read_write_dns
+my_email = w.current_user.me().user_name
 
 conn = psycopg2.connect(
     host=pg_host, port=5432, dbname="databricks_postgres",
-    user=email, password=cred.token, sslmode="require",
+    user=my_email, password=cred.token, sslmode="require",
 )
 conn.autocommit = True
 cur = conn.cursor()
 
-# Generate a random native password for the SP role
-pg_password = secrets.token_urlsafe(32)
+# Ensure PG role exists for the SP
+cur.execute("SELECT 1 FROM pg_roles WHERE rolname = %s", (sp_client_id,))
+if not cur.fetchone():
+    cur.execute(f'CREATE ROLE "{sp_client_id}" LOGIN')
+    print(f"Created PG role for SP: {sp_client_id}")
 
-# Create role if it doesn't exist, then set native password
-cur.execute(f"""
-    DO $$
-    BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = '{sp_client_id}') THEN
-            CREATE ROLE "{sp_client_id}" LOGIN;
-        END IF;
-    END
-    $$;
-""")
-cur.execute(f"ALTER ROLE \"{sp_client_id}\" WITH PASSWORD %s", (pg_password,))
+# Set the databricks_auth security label so OAuth tokens are accepted
+sp_db_id = app_info.service_principal_id
+cur.execute(
+    f"""SECURITY LABEL FOR databricks_auth ON ROLE "{sp_client_id}" """
+    f"""IS 'id={sp_db_id},type=SERVICE_PRINCIPAL'"""
+)
+print(f"Set databricks_auth security label for SP (id={sp_db_id})")
+
+# Grant schema + table access
 cur.execute(f'GRANT USAGE ON SCHEMA {schema} TO "{sp_client_id}"')
 cur.execute(f'GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO "{sp_client_id}"')
-cur.execute(f'ALTER DEFAULT PRIVILEGES IN SCHEMA {schema} GRANT SELECT ON TABLES TO "{sp_client_id}"')
-conn.close()
+print(f"Granted PG schema access on {schema}")
 
-print(f"Lakebase Postgres grants applied for SP '{sp_client_id}' on schema '{schema}'.")
+conn.close()
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 2 — Write app.yaml and Deploy the App
+# MAGIC ## Step 3 — Write app.yaml and Deploy the App
 
 # COMMAND ----------
 
@@ -105,7 +109,7 @@ deploy_path = app.default_source_code_path or source_path
 if not deploy_path:
     raise RuntimeError("Cannot determine source code path: app has no previous deployment and source_path parameter is not set.")
 
-# Write app.yaml with env vars from job parameters (no hardcoded values)
+# Write app.yaml — no PG credentials needed (app uses OAuth tokens via SDK)
 app_yaml = f"""\
 command:
   - uvicorn
@@ -120,12 +124,8 @@ env:
     value: "{agent_endpoint}"
   - name: UC_SCHEMA
     value: "{schema}"
-  - name: PGHOST
-    value: "{pg_host}"
-  - name: PGUSER
-    value: "{sp_client_id}"
-  - name: PGPASSWORD
-    value: "{pg_password}"
+  - name: LAKEBASE_INSTANCE
+    value: "{lakebase_instance}"
 """
 
 # Write app.yaml into the source directory using workspace import API

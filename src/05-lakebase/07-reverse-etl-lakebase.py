@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 # MAGIC
-# MAGIC # 7 — Reverse ETL to Lakebase (Synced Tables)
+# MAGIC # 7 — Reverse ETL to Lakebase Provisioned (Synced Tables)
 # MAGIC
 # MAGIC **The business problem:** ShopNow's operations team uses a custom internal portal
 # MAGIC that reads from a Postgres database. They need the gold-layer analytics tables from the
@@ -15,7 +15,7 @@
 # MAGIC ### Flow
 # MAGIC ```
 # MAGIC gold_revenue_daily  ─┐
-# MAGIC gold_top_products   ─┼──► Synced Tables (snapshot) ──► Lakebase (Postgres) ──► ShopNow App
+# MAGIC gold_top_products   ─┼──► Synced Tables (snapshot) ──► Lakebase Provisioned ──► ShopNow App
 # MAGIC gold_customer_ltv   ─┘
 # MAGIC ```
 
@@ -34,152 +34,169 @@ schema  = dbutils.widgets.get("schema")
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 1 — Use Bundle-Created Lakebase Project and Wait for It
-# MAGIC
-# MAGIC The Lakebase project is created by the **Databricks Asset Bundle** (see
-# MAGIC `resources/shopnow_lakebase.yml`). This notebook does **not** create the project;
-# MAGIC it waits for the bundle-deployed project to become available, then proceeds to
-# MAGIC verify readiness and document synced table setup.
+# MAGIC ## Step 1 — Create or Get Lakebase Provisioned Instance
 
 # COMMAND ----------
 
 import time
+import uuid
 from databricks.sdk import WorkspaceClient
+from databricks.sdk.errors import NotFound
+from databricks.sdk.service.database import DatabaseInstance
 
 w = WorkspaceClient()
 
-PROJECT_NAME = "shopnow-lakebase"
-BRANCH_NAME  = "production"
-MAX_WAIT_SEC = 600   # 10 minutes
-POLL_INTERVAL_SEC = 15
+INSTANCE_NAME = "shopnow-lakebase"
+CAPACITY      = "CU_1"
+MAX_WAIT_SEC  = 600
+POLL_SEC      = 15
 
-project_path = f"projects/{PROJECT_NAME}"
-branch_path  = f"{project_path}/branches/{BRANCH_NAME}"
+# Create instance if it doesn't exist, otherwise get existing one
+try:
+    instance = w.database.get_database_instance(name=INSTANCE_NAME)
+    print(f"Instance already exists: {instance.name} (state: {instance.state})")
+except NotFound:
+    print(f"Creating Lakebase Provisioned instance '{INSTANCE_NAME}' ...")
+    instance = w.database.create_database_instance(
+        database_instance=DatabaseInstance(
+            name=INSTANCE_NAME,
+            capacity=CAPACITY,
+            stopped=False,
+            enable_pg_native_login=True,
+        )
+    ).result()
+    print(f"Instance created: {instance.name}")
 
-# Wait for the bundle-created project to exist
-print(f"Waiting for bundle-created project '{PROJECT_NAME}' to be available...")
+# Wait for instance to be RUNNING
+print(f"Waiting for instance to be RUNNING ...")
 start = time.time()
-project_ok = False
 while (time.time() - start) < MAX_WAIT_SEC:
-    try:
-        p = w.postgres.get_project(name=project_path)
-        if p and p.name:
-            project_ok = True
-            print(f"Project found: {p.name}")
-            break
-    except Exception as e:
-        if "not found" in str(e).lower() or "404" in str(e):
-            print(f"  Project not ready yet ({int(time.time() - start)}s elapsed)...")
-        else:
-            raise
-    time.sleep(POLL_INTERVAL_SEC)
-
-if not project_ok:
-    raise RuntimeError(f"Project '{PROJECT_NAME}' did not become available within {MAX_WAIT_SEC}s. Ensure the bundle has been deployed.")
-
-# Wait for the default branch endpoint to exist
-print(f"Waiting for branch '{BRANCH_NAME}' endpoint...")
-start = time.time()
-compute_path = None
-while (time.time() - start) < MAX_WAIT_SEC:
-    endpoints = list(w.postgres.list_endpoints(parent=branch_path))
-    if endpoints:
-        compute_path = endpoints[0].name
-        print(f"Using endpoint: {compute_path}")
+    instance = w.database.get_database_instance(name=INSTANCE_NAME)
+    state = str(instance.state).split(".")[-1]
+    if state in ("RUNNING", "AVAILABLE"):
+        print(f"Instance is {state}. DNS: {instance.read_write_dns}")
         break
-    print(f"  No endpoint yet ({int(time.time() - start)}s elapsed)...")
-    time.sleep(POLL_INTERVAL_SEC)
+    if state in ("STOPPED", "FAILED"):
+        if state == "STOPPED":
+            print("Instance is STOPPED — starting it ...")
+            w.database.start_database_instance(name=INSTANCE_NAME)
+        else:
+            raise RuntimeError(f"Instance is in FAILED state")
+    print(f"  State: {state} ({int(time.time() - start)}s elapsed) ...")
+    time.sleep(POLL_SEC)
+else:
+    raise RuntimeError(f"Instance '{INSTANCE_NAME}' did not reach RUNNING within {MAX_WAIT_SEC}s")
 
-if not compute_path:
-    raise RuntimeError(f"No endpoint for branch '{BRANCH_NAME}' within {MAX_WAIT_SEC}s.")
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Step 2 — Create Synced Tables (UI Steps)
-# MAGIC
-# MAGIC Synced Tables on Lakebase Autoscaling are created via the Databricks UI.
-# MAGIC Follow these steps for **each** of the three gold tables:
-# MAGIC
-# MAGIC ### Tables to sync
-# MAGIC
-# MAGIC | Source Table (Unity Catalog) | Target Table (Lakebase) | Primary Key |
-# MAGIC |-----------------------------|-------------------------|-------------|
-# MAGIC | `gold_revenue_daily` | `gold_revenue_daily_synced` | `order_day`, `ship_country` |
-# MAGIC | `gold_top_products` | `gold_top_products_synced` | `product_id` |
-# MAGIC | `gold_customer_ltv` | `gold_customer_ltv_synced` | `customer_id` |
-# MAGIC
-# MAGIC ### Instructions
-# MAGIC
-# MAGIC 1. Open **Catalog Explorer** in the Databricks workspace
-# MAGIC 2. Navigate to the source table (e.g. `main.aws_webinar_demo_dev.gold_revenue_daily`)
-# MAGIC 3. Click **Create > Synced table**
-# MAGIC 4. In the dialog:
-# MAGIC    - **Database type:** Lakebase Serverless (Autoscaling)
-# MAGIC    - **Project:** `shopnow-lakebase`
-# MAGIC    - **Branch:** `production`
-# MAGIC    - **Database:** `databricks_postgres`
-# MAGIC    - **Sync mode:** Snapshot
-# MAGIC    - **Table name:** use the source name with a `_synced` suffix (e.g. `gold_revenue_daily_synced`)
-# MAGIC    - **Primary key:** select the columns from the table above
-# MAGIC 5. Click **Create**
-# MAGIC 6. Repeat for the other two gold tables
-# MAGIC
-# MAGIC Once created, the synced tables will be available as Postgres tables in Lakebase
-# MAGIC (in the `databricks_postgres` database) and can be queried by the ShopNow App.
+pg_host = instance.read_write_dns
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Step 2b — Ensure Lakebase Schema Exists
+# MAGIC ## Step 2 — Create Synced Tables Programmatically
 # MAGIC
-# MAGIC The synced tables will be created in a Postgres schema matching the UC schema name.
-# MAGIC If the schema doesn't exist yet (e.g. synced tables haven't been created via the UI),
-# MAGIC we create it so that the subsequent SP grants don't fail.
+# MAGIC Unlike Lakebase Autoscaling, Lakebase Provisioned supports creating synced tables
+# MAGIC via the SDK. We create one synced table per gold table using **snapshot** mode.
+
+# COMMAND ----------
+
+from databricks.sdk.service.database import (
+    SyncedDatabaseTable,
+    SyncedTableSpec,
+    SyncedTableSchedulingPolicy,
+)
+
+SYNCED_TABLES = [
+    {
+        "source": f"{catalog}.{schema}.gold_revenue_daily",
+        "target": f"{catalog}.{schema}.gold_revenue_daily_synced",
+        "pk": ["order_day", "ship_country"],
+    },
+    {
+        "source": f"{catalog}.{schema}.gold_top_products",
+        "target": f"{catalog}.{schema}.gold_top_products_synced",
+        "pk": ["product_id"],
+    },
+    {
+        "source": f"{catalog}.{schema}.gold_customer_ltv",
+        "target": f"{catalog}.{schema}.gold_customer_ltv_synced",
+        "pk": ["customer_id"],
+    },
+]
+
+for tbl in SYNCED_TABLES:
+    try:
+        existing = w.database.get_synced_database_table(name=tbl["target"])
+        print(f"Synced table already exists: {tbl['target']}")
+    except NotFound:
+        print(f"Creating synced table: {tbl['source']} → {tbl['target']} ...")
+        w.database.create_synced_database_table(
+            SyncedDatabaseTable(
+                name=tbl["target"],
+                database_instance_name=INSTANCE_NAME,
+                logical_database_name="databricks_postgres",
+                spec=SyncedTableSpec(
+                    source_table_full_name=tbl["source"],
+                    primary_key_columns=tbl["pk"],
+                    scheduling_policy=SyncedTableSchedulingPolicy.SNAPSHOT,
+                ),
+            )
+        )
+        print(f"  Created.")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 3 — Wait for Synced Tables to Complete
+
+# COMMAND ----------
+
+print("Waiting for synced tables to finish initial sync ...")
+for tbl in SYNCED_TABLES:
+    start = time.time()
+    while (time.time() - start) < MAX_WAIT_SEC:
+        status = w.database.get_synced_database_table(name=tbl["target"])
+        state = str(status.data_synchronization_status.detailed_state).split(".")[-1] if status.data_synchronization_status else "UNKNOWN"
+        if "ONLINE" in state:
+            print(f"  {tbl['target']}: {state}")
+            break
+        if "FAILED" in state:
+            msg = status.data_synchronization_status.message if status.data_synchronization_status else ""
+            print(f"  WARNING: {tbl['target']}: {state} — {msg}")
+            break
+        print(f"  {tbl['target']}: {state} ({int(time.time() - start)}s) ...")
+        time.sleep(POLL_SEC)
+    else:
+        print(f"  WARNING: {tbl['target']} did not reach ONLINE within {MAX_WAIT_SEC}s")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Step 4 — Verify Lakebase Connectivity
 
 # COMMAND ----------
 
 import psycopg2
 
-endpoint_info = w.postgres.get_endpoint(name=compute_path)
-host = endpoint_info.status.hosts.host if (endpoint_info.status and endpoint_info.status.hosts) else None
-if not host:
-    raise RuntimeError(f"Lakebase endpoint {compute_path} has no host")
-
-cred = w.postgres.generate_database_credential(endpoint=compute_path)
+cred = w.database.generate_database_credential(
+    request_id=str(uuid.uuid4()),
+    instance_names=[INSTANCE_NAME],
+)
 email = w.current_user.me().user_name
 
 conn = psycopg2.connect(
-    host=host, port=5432, dbname="databricks_postgres",
+    host=pg_host, port=5432, dbname="databricks_postgres",
     user=email, password=cred.token, sslmode="require",
 )
 conn.autocommit = True
 cur = conn.cursor()
-cur.execute(f"SELECT schema_name FROM information_schema.schemata WHERE schema_name = '{schema}'")
-if cur.fetchone():
-    print(f"Schema '{schema}' already exists in Lakebase.")
-else:
-    cur.execute(f'CREATE SCHEMA "{schema}"')
-    print(f"Schema '{schema}' created in Lakebase.")
+cur.execute("SELECT version()")
+print(f"Connected to: {cur.fetchone()[0]}")
+cur.execute("SELECT schemaname, tablename FROM pg_tables WHERE schemaname NOT IN ('pg_catalog','information_schema') LIMIT 20")
+tables = cur.fetchall()
+print(f"\nTables visible ({len(tables)}):")
+for s, t in tables:
+    print(f"  {s}.{t}")
 conn.close()
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Step 3 — Verify Lakebase is Ready
-# MAGIC
-# MAGIC Confirm the project and endpoint are healthy. The synced tables will populate
-# MAGIC once they are created via the UI.
-
-# COMMAND ----------
-
-state = endpoint_info.status.current_state if endpoint_info.status else "unknown"
-
-print(f"Project       : {PROJECT_NAME}")
-print(f"Branch        : {BRANCH_NAME}")
-print(f"Compute state : {state}")
-print(f"Host          : {host}")
-print(f"\nLakebase is ready for synced tables.")
 
 # COMMAND ----------
 
@@ -188,11 +205,11 @@ print(f"\nLakebase is ready for synced tables.")
 # MAGIC
 # MAGIC | Step | What happened |
 # MAGIC |------|--------------|
-# MAGIC | 1 | Waited for **bundle-created** Lakebase project and its default branch endpoint |
-# MAGIC | 2 | **Synced Tables** to be created via UI for 3 gold tables (snapshot mode) |
-# MAGIC | 2b | Ensured Lakebase Postgres schema exists |
-# MAGIC | 3 | Lakebase endpoint verified and ready for connections |
+# MAGIC | 1 | Created/verified **Lakebase Provisioned** instance (`shopnow-lakebase`, CU_1) |
+# MAGIC | 2 | Created **synced tables** programmatically for 3 gold tables (snapshot mode) |
+# MAGIC | 3 | Waited for initial sync to complete |
+# MAGIC | 4 | Verified Postgres connectivity and listed synced tables |
 # MAGIC
-# MAGIC App service principal grants are handled by the **restart-app** task.
+# MAGIC App service principal grants are handled by the **start-app** task.
 # MAGIC
 # MAGIC **Next** [06-app/app.py — ShopNow Ops Hub Databricks App]($../06-app/app)

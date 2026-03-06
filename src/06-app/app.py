@@ -12,39 +12,90 @@ Deploy:       databricks bundle deploy && databricks bundle run shopnow_app
 import asyncio
 import logging
 import os
+import threading
+import uuid
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
 import psycopg2.extras
+from databricks.sdk import WorkspaceClient
 
 logger = logging.getLogger("shopnow")
 
 # ---------------------------------------------------------------------------
 # Configuration (injected by Databricks Apps as environment variables)
 # ---------------------------------------------------------------------------
-AGENT_ENDPOINT = os.environ["AGENT_ENDPOINT"]
-UC_SCHEMA      = os.environ["UC_SCHEMA"]
+AGENT_ENDPOINT    = os.environ["AGENT_ENDPOINT"]
+UC_SCHEMA         = os.environ["UC_SCHEMA"]
+LAKEBASE_INSTANCE = os.environ["LAKEBASE_INSTANCE"]
 
 # ---------------------------------------------------------------------------
-# Lakebase connection (credentials injected via app.yaml env vars)
+# Lakebase connection (OAuth token auth — auto-refreshed)
 # ---------------------------------------------------------------------------
+
+_w = WorkspaceClient()
+_pg_token: str = ""
+_pg_user: str = ""
+_token_lock = threading.Lock()
+TOKEN_REFRESH_SEC = 50 * 60  # refresh every 50 min (tokens expire at 60 min)
+
+
+def _refresh_token():
+    """Generate a fresh OAuth token for Lakebase."""
+    global _pg_token, _pg_user
+    cred = _w.database.generate_database_credential(
+        request_id=str(uuid.uuid4()),
+        instance_names=[LAKEBASE_INSTANCE],
+    )
+    with _token_lock:
+        _pg_token = cred.token
+        if not _pg_user:
+            _pg_user = _w.current_user.me().user_name
+    logger.info("Lakebase OAuth token refreshed")
+
+
+def _token_refresh_loop():
+    """Background thread that refreshes the token periodically."""
+    import time
+    while True:
+        try:
+            _refresh_token()
+        except Exception as e:
+            logger.error(f"Token refresh failed: {e}")
+        time.sleep(TOKEN_REFRESH_SEC)
+
 
 def _get_lakebase_conn():
-    """Get a psycopg2 connection to Lakebase using injected PG* env vars."""
-    pg_host = os.environ.get("PGHOST", "")
-    if not pg_host or pg_host == "pending":
-        raise RuntimeError("Lakebase not configured yet — run the orchestration job first")
+    """Get a psycopg2 connection to Lakebase using OAuth token."""
+    instance = _w.database.get_database_instance(name=LAKEBASE_INSTANCE)
+    pg_host = instance.read_write_dns
+    if not pg_host:
+        raise RuntimeError("Lakebase instance has no DNS endpoint")
+    with _token_lock:
+        token = _pg_token
+        user = _pg_user
+    if not token:
+        raise RuntimeError("Lakebase token not yet available")
     return psycopg2.connect(
         host=pg_host,
-        port=os.environ.get("PGPORT", "5432"),
-        dbname=os.environ.get("PGDATABASE", "databricks_postgres"),
-        user=os.environ["PGUSER"],
-        password=os.environ["PGPASSWORD"],
+        port=5432,
+        dbname="databricks_postgres",
+        user=user,
+        password=token,
         sslmode="require",
         options=f"-c search_path={UC_SCHEMA},public",
     )
 
+
 app = FastAPI(title="ShopNow Ops Hub")
+
+
+@app.on_event("startup")
+async def startup():
+    """Generate initial token and start background refresh."""
+    await asyncio.to_thread(_refresh_token)
+    t = threading.Thread(target=_token_refresh_loop, daemon=True)
+    t.start()
 
 # ---------------------------------------------------------------------------
 # HTML Template (inline for simplicity — no separate templates dir needed)
@@ -249,9 +300,7 @@ async def get_kpis():
 
 def _query_agent(question: str) -> str:
     """Synchronous call to the agent endpoint (runs in thread pool)."""
-    from databricks.sdk import WorkspaceClient
-    w = WorkspaceClient()
-    resp = w.api_client.do(
+    resp = _w.api_client.do(
         "POST",
         f"/serving-endpoints/{AGENT_ENDPOINT}/invocations",
         body={"messages": [{"role": "user", "content": question}]},
