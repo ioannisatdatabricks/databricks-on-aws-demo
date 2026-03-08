@@ -6,6 +6,7 @@
 .ai-dev-kit/
 .mcp.json
 .mcp.json.bak
+CLAUDE.md
 
 # Python
 __pycache__/

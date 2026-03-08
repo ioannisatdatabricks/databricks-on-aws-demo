@@ -2,7 +2,7 @@
 -- MAGIC %md
 -- MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 -- MAGIC
--- MAGIC # 5 — Genie Space: Natural Language Analytics
+-- MAGIC # 4b — Genie Space: Natural Language Analytics
 -- MAGIC
 -- MAGIC **Maya** wants business users who don't write SQL to be able to ask data questions on their own.
 -- MAGIC
@@ -100,4 +100,4 @@ ORDER BY total_revenue DESC;
 -- MAGIC
 -- MAGIC Genie maintains conversation context — follow-up questions build on previous answers.
 -- MAGIC
--- MAGIC **Next →** [06-agent-creation: Build an AI Agent]($../04-ai-agent/06-agent-creation)
+-- MAGIC **Next →** [01-reverse-etl-lakebase: Sync Tables to Lakebase]($../05-lakebase/01-reverse-etl-lakebase)

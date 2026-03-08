@@ -14,20 +14,42 @@
 -- MAGIC
 -- MAGIC ---
 -- MAGIC
--- MAGIC ## 🏪 The Business Scenario
+-- MAGIC ## What is Databricks?
+-- MAGIC
+-- MAGIC Databricks is a **unified data and AI platform** built on the Lakehouse architecture. It combines the best of data warehouses and data lakes into a single platform running on your cloud account (in this case, AWS).
+-- MAGIC
+-- MAGIC Instead of stitching together separate tools for ingestion, transformation, governance, BI, AI/ML, and application serving, Databricks provides all of these as integrated capabilities:
+-- MAGIC
+-- MAGIC | Capability | What it does | Traditional alternative |
+-- MAGIC |-----------|-------------|----------------------|
+-- MAGIC | **Lakeflow Pipelines** | Ingest and transform data (ETL) with declarative SQL | Airflow + Spark + custom code |
+-- MAGIC | **Unity Catalog** | Govern data: access control, PII masking, lineage | Collibra / Alation + manual config |
+-- MAGIC | **AI/BI Dashboards** | Build interactive dashboards on live data | Tableau / Looker + data extracts |
+-- MAGIC | **Genie Spaces** | Let business users ask questions in plain English | None (requires SQL knowledge) |
+-- MAGIC | **Mosaic AI** | Build and deploy AI agents with tool calling | LangChain + external LLM + custom infra |
+-- MAGIC | **Lakebase** | Managed PostgreSQL with automatic table sync | RDS + Fivetran / Airbyte |
+-- MAGIC | **Databricks Apps** | Host web applications on the platform | EC2 / ECS / Lambda + API Gateway |
+-- MAGIC | **Asset Bundles** | Infrastructure-as-code for all of the above | Terraform + CI/CD pipelines |
+-- MAGIC
+-- MAGIC All of these share the same **security model**, **identity system**, and **metadata catalog**. Data never leaves the platform boundary.
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## The Business Scenario
 -- MAGIC
 -- MAGIC **ShopNow** is a mid-size online retailer selling Electronics, Clothing, Home & Garden, Sports, and Books across 10 countries. Their data team needs to:
 -- MAGIC
 -- MAGIC 1. **Reliably ingest** orders, customer profiles, product catalog, and clickstream data into the Lakehouse
 -- MAGIC 2. **Govern** all data assets with fine-grained access control and full lineage
--- MAGIC 3. **Analyse** revenue trends, cart abandonment, and top-selling products in real time
--- MAGIC 4. **Build an AI Agent** that answers operational questions from pre-built gold tables
--- MAGIC 5. **Sync key KPIs** back to their operational Postgres database (Lakebase) for downstream apps
--- MAGIC 6. **Deploy an internal App** that combines dashboards, Genie, and the AI Agent in one UI
+-- MAGIC 3. **Build an AI Agent** that answers operational questions from live gold tables
+-- MAGIC 4. **Analyse** revenue trends, cart abandonment, and top-selling products
+-- MAGIC 5. **Sync key KPIs** to an operational PostgreSQL database (Lakebase) for downstream apps
+-- MAGIC 6. **Deploy an internal App** that combines live KPIs, Genie, and the AI Agent in one UI
 -- MAGIC
 -- MAGIC ---
 -- MAGIC
--- MAGIC ## 🗺️ Architecture Overview
+-- MAGIC ## Architecture Overview
 -- MAGIC
 -- MAGIC ```
 -- MAGIC ┌──────────────────────────────────────────────────────────────────────────────┐
@@ -40,81 +62,126 @@
 -- MAGIC │               Spark Declarative Pipeline  (Bronze → Silver → Gold)            │
 -- MAGIC │  bronze_orders  │ bronze_customers  │ silver_orders  │ gold_revenue_daily      │
 -- MAGIC │  silver_customers │ gold_top_products │ gold_cart_abandonment                  │
--- MAGIC └──────────────────────┬───────────────────────────────┬────────────────────────┘
--- MAGIC                        │  Unity Catalog                │  Reverse ETL
--- MAGIC                        ▼                               ▼
--- MAGIC              ┌──────────────────┐          ┌──────────────────────┐
--- MAGIC              │  AI/BI Dashboard  │          │  Lakebase (Postgres)  │
--- MAGIC              │  Genie Space      │          │  kpi_summary table    │
--- MAGIC              └────────┬─────────┘          └──────────────────────┘
--- MAGIC                       │  Mosaic AI
--- MAGIC                       ▼
--- MAGIC              ┌──────────────────┐
--- MAGIC              │   AI Agent        │
--- MAGIC              │  (UC Functions)   │
--- MAGIC              └────────┬─────────┘
--- MAGIC                       │
--- MAGIC                       ▼
--- MAGIC              ┌──────────────────┐
--- MAGIC              │  Databricks App   │
--- MAGIC              │  ShopNow Ops Hub  │
--- MAGIC              └──────────────────┘
+-- MAGIC └──────┬──────────────────┬──────────────────────┬────────────────────────────┘
+-- MAGIC        │ Unity Catalog    │  Mosaic AI            │  Reverse ETL
+-- MAGIC        ▼                  ▼                       ▼
+-- MAGIC ┌────────────┐  ┌──────────────────┐  ┌──────────────────────┐
+-- MAGIC │ Governance  │  │   AI Agent        │  │ Lakebase Provisioned │
+-- MAGIC │ Tags, RLS,  │  │  (UC Functions)   │  │   Synced Tables      │
+-- MAGIC │ Masking     │  └────────┬─────────┘  └──────────┬───────────┘
+-- MAGIC └────────────┘           │                        │
+-- MAGIC                          ▼                        │
+-- MAGIC              ┌──────────────────┐                 │
+-- MAGIC              │  AI/BI Dashboard  │                 │
+-- MAGIC              │  Genie Space      │                 │
+-- MAGIC              └────────┬─────────┘                 │
+-- MAGIC                       │                           │
+-- MAGIC                       ▼                           ▼
+-- MAGIC              ┌────────────────────────────────────────┐
+-- MAGIC              │         Databricks App                  │
+-- MAGIC              │  ShopNow Ops Hub (KPIs + Agent + Genie) │
+-- MAGIC              └────────────────────────────────────────┘
 -- MAGIC ```
--- MAGIC
--- MAGIC ---
--- MAGIC
--- MAGIC ## 📋 Demo Notebooks
--- MAGIC
--- MAGIC | Step | Notebook | What you'll see |
--- MAGIC |------|----------|-----------------|
--- MAGIC | 0 | `_resources/00-setup` | Generate synthetic data into UC Volume |
--- MAGIC | 1 | `01-pipeline/01-declarative-pipeline` | Lakeflow pipeline: Bronze → Silver → Gold |
--- MAGIC | 2 | `01-pipeline/02-pipeline-cdc` | CDC processing for customer updates |
--- MAGIC | 3 | `02-governance/03-unity-catalog` | Tagging, row-level security, lineage |
--- MAGIC | 4 | `03-aibi/04-dashboard` | AI/BI dashboard walkthrough |
--- MAGIC | 5 | `03-aibi/05-genie-space` | Genie natural-language queries |
--- MAGIC | 6 | `04-ai-agent/06-agent-creation` | Build & test a UC-function-backed agent |
--- MAGIC | 7 | `05-lakebase/07-reverse-etl` | Push KPIs to Lakebase Postgres |
--- MAGIC | 8 | `06-app/app.py` | Databricks App: ShopNow Ops Hub |
--- MAGIC
--- MAGIC ---
--- MAGIC
--- MAGIC ## 🚀 Getting Started
--- MAGIC
--- MAGIC **Prerequisites:**
--- MAGIC - Databricks workspace with Unity Catalog enabled
--- MAGIC - Serverless compute enabled
--- MAGIC - Lakebase feature enabled (for notebook 7)
--- MAGIC - Databricks Apps enabled (for notebook 8)
--- MAGIC
--- MAGIC **Step 1:** Run `_resources/00-setup` to generate data
--- MAGIC **Step 2:** Deploy the pipeline via the bundle: `databricks bundle deploy && databricks bundle run shopnow_pipeline`
--- MAGIC **Step 3:** Follow notebooks 3–8 in order
 
 -- COMMAND ----------
 
 -- MAGIC %md
--- MAGIC ## 👥 The Team
+-- MAGIC ## Key Concepts for Newcomers
+-- MAGIC
+-- MAGIC If you are new to Databricks, here are the key concepts you will encounter in this demo:
+-- MAGIC
+-- MAGIC | Concept | What it means |
+-- MAGIC |---------|--------------|
+-- MAGIC | **Lakehouse** | An architecture that combines the reliability of a data warehouse with the flexibility of a data lake. Your data lives in open formats (Delta Lake) on S3, governed by Unity Catalog. |
+-- MAGIC | **Medallion Architecture** | A data design pattern with three layers: **Bronze** (raw data as-is), **Silver** (cleansed and typed), **Gold** (business-ready aggregations). |
+-- MAGIC | **Autoloader** | Incrementally ingests new files from cloud storage (S3) as they arrive. No manual file listing — it just works. |
+-- MAGIC | **Streaming Table** | A table that is continuously updated as new data arrives. Managed by the pipeline engine. |
+-- MAGIC | **Materialized View** | A pre-computed query result that the pipeline automatically keeps fresh. Think of it as a cached, always-up-to-date query. |
+-- MAGIC | **Unity Catalog** | The governance layer: manages permissions, tracks lineage, stores metadata, and hosts functions. Every table, model, and function lives here. |
+-- MAGIC | **UC Function** | A SQL or Python function registered in Unity Catalog. Can be used as a tool by AI agents. |
+-- MAGIC | **Foundation Model API** | Large language models (like Llama, Claude) hosted directly on Databricks. No external API keys needed. |
+-- MAGIC | **Serverless** | Compute that Databricks manages for you. No clusters to configure, no scaling to tune, no idle costs (for scale-to-zero resources). |
+-- MAGIC | **Asset Bundle** | A project definition (YAML + code) that describes all your Databricks resources. Deploy everything with `databricks bundle deploy`. |
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## Demo Notebooks
+-- MAGIC
+-- MAGIC | # | Folder | Notebook | What you'll see |
+-- MAGIC |---|--------|----------|-----------------|
+-- MAGIC | 0 | `_resources` | `00-setup` | Generate synthetic data into Unity Catalog Volume |
+-- MAGIC | 1 | `01-pipeline` | `01-declarative-pipeline` | Lakeflow pipeline: Bronze → Silver → Gold |
+-- MAGIC | 1 | `01-pipeline` | `02-pipeline-cdc` | CDC processing for customer updates |
+-- MAGIC | 2 | `02-governance` | `01-unity-catalog` | Tagging, column masking, row-level security, lineage |
+-- MAGIC | 3 | `03-ai-agent` | `01-agent-creation` | Build & deploy a UC-function-backed LangGraph agent |
+-- MAGIC | 4 | `04-ai-bi` | `01-dashboard` | AI/BI dashboard walkthrough |
+-- MAGIC | 4 | `04-ai-bi` | `02-genie-space` | Genie natural-language SQL queries |
+-- MAGIC | 5 | `05-lakebase` | `01-reverse-etl-lakebase` | Reverse ETL: sync gold KPIs to Lakebase Provisioned |
+-- MAGIC | 6 | `06-app` | `app.py` | Databricks App: ShopNow Ops Hub (KPIs + Agent + Genie) |
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## Orchestration Job
+-- MAGIC
+-- MAGIC The entire workflow is automated by a single **Databricks Job** (`ShopNow — Full Demo Orchestration`):
+-- MAGIC
+-- MAGIC ```
+-- MAGIC setup (data gen)
+-- MAGIC   └──► run_pipeline (Bronze → Silver → Gold)
+-- MAGIC          ├──► deploy_agent          ─┐
+-- MAGIC          ├──► refresh_dashboard      │  (parallel)
+-- MAGIC          └──► reverse_etl            ─┘
+-- MAGIC                    └──► start_app (grants + deploy)
+-- MAGIC ```
+-- MAGIC
+-- MAGIC Deploy and run everything with:
+-- MAGIC ```
+-- MAGIC databricks bundle deploy && databricks bundle run shopnow_orchestration
+-- MAGIC ```
+-- MAGIC
+-- MAGIC ---
+-- MAGIC
+-- MAGIC ## Getting Started
+-- MAGIC
+-- MAGIC **Prerequisites:**
+-- MAGIC - Databricks workspace on AWS with Unity Catalog enabled
+-- MAGIC - Serverless compute enabled
+-- MAGIC - Lakebase Provisioned enabled
+-- MAGIC - Databricks Apps enabled
+-- MAGIC
+-- MAGIC **Option A — One-click:** Deploy the bundle and run the orchestration job (see above)
+-- MAGIC
+-- MAGIC **Option B — Step-by-step:** Follow the notebooks in order (01 → 06), running each interactively
+-- MAGIC
+-- MAGIC > **Note:** The pipeline notebooks (`01-pipeline/`) are run by the Lakeflow engine, not cell-by-cell. Open them to read the code, but use the orchestration job or the pipeline UI to execute them.
+
+-- COMMAND ----------
+
+-- MAGIC %md
+-- MAGIC ## The Team
 -- MAGIC
 -- MAGIC <table style="width:100%; border-collapse:collapse">
 -- MAGIC <tr>
 -- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
--- MAGIC     <b>🔧 Alex</b><br/><i>Data Engineer</i><br/>Builds the pipeline
+-- MAGIC     <b>Alex</b><br/><i>Data Engineer</i><br/>Builds the pipeline
 -- MAGIC   </td>
 -- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
--- MAGIC     <b>🔒 Sam</b><br/><i>Data Steward</i><br/>Governs access & PII
+-- MAGIC     <b>Sam</b><br/><i>Data Steward</i><br/>Governs access & PII
 -- MAGIC   </td>
 -- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
--- MAGIC     <b>📊 Maya</b><br/><i>BI Analyst</i><br/>Builds dashboards & Genie
+-- MAGIC     <b>Leo</b><br/><i>AI/ML Engineer</i><br/>Creates the agent
 -- MAGIC   </td>
 -- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
--- MAGIC     <b>🤖 Leo</b><br/><i>AI/ML Engineer</i><br/>Creates the agent
+-- MAGIC     <b>Maya</b><br/><i>BI Analyst</i><br/>Builds dashboards & Genie
 -- MAGIC   </td>
 -- MAGIC   <td style="padding:12px; text-align:center; border:1px solid #ddd; width:20%">
--- MAGIC     <b>💻 Priya</b><br/><i>App Developer</i><br/>Ships the ops app
+-- MAGIC     <b>Priya</b><br/><i>App Developer</i><br/>Ships the ops app
 -- MAGIC   </td>
 -- MAGIC </tr>
 -- MAGIC </table>
+-- MAGIC
+-- MAGIC Each persona represents a real role in the data team. On Databricks, they all work on the same platform — no handoffs, no data silos, no integration tax.
 -- MAGIC
 -- MAGIC ---
 -- MAGIC

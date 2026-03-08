@@ -2,7 +2,7 @@
 -- MAGIC %md
 -- MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 -- MAGIC
--- MAGIC # 4 — AI/BI Dashboard: ShopNow Revenue Intelligence
+-- MAGIC # 4a — AI/BI Dashboard: ShopNow Revenue Intelligence
 -- MAGIC
 -- MAGIC <img src="https://raw.githubusercontent.com/databricks-demos/dbdemos-resources/main/images/product/aibi/aibi-dashboard.png" style="float:right; margin-left:20px" width="450px"/>
 -- MAGIC
@@ -123,4 +123,4 @@ ORDER BY avg_ltv DESC;
 -- MAGIC
 -- MAGIC All powered by Databricks' understanding of your Unity Catalog metadata.
 -- MAGIC
--- MAGIC **Next →** [05-genie-space: Natural Language Q&A]($./05-genie-space)
+-- MAGIC **Next →** [02-genie-space: Natural Language Q&A]($./02-genie-space)

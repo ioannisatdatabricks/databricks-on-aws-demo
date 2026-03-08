@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 # MAGIC
-# MAGIC # 7 — Reverse ETL to Lakebase Provisioned (Synced Tables)
+# MAGIC # 5 — Reverse ETL to Lakebase Provisioned (Synced Tables)
 # MAGIC
 # MAGIC **The business problem:** ShopNow's operations team uses a custom internal portal
 # MAGIC that reads from a Postgres database. They need the gold-layer analytics tables from the

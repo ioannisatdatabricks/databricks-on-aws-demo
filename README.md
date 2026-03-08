@@ -1,102 +1,96 @@
-# Data Intelligence with Databricks on AWS — Webinar Demo
+# Data Intelligence with Databricks on AWS
 
-**Event:** April 7, 2026 · AWS Workshop
-**Story:** ShopNow — an e-commerce retailer running the full data + AI lifecycle on Databricks
+A hands-on demo that takes you from raw data files in S3 to a production AI-powered web application — all on Databricks.
 
----
+You will follow **ShopNow**, a fictional e-commerce retailer, as it builds a complete data + AI platform. Along the way you will see how Databricks unifies data engineering, governance, business intelligence, AI, and application development on a single platform running on AWS.
 
-## Demo Flow
+## What You Will Learn
 
-```
-00-introduction          ← Start here (overview + architecture)
-├── _resources/00-setup  ← Generate synthetic data
-├── 01-pipeline/
-│   ├── 01-declarative-pipeline  ← Lakeflow: Bronze→Silver→Gold (SQL)
-│   └── 02-pipeline-cdc          ← CDC: customer profile updates
-├── 02-governance/
-│   └── 03-unity-catalog         ← PII masking, RLS, lineage
-├── 03-aibi/
-│   ├── 04-dashboard             ← AI/BI Dashboard queries
-│   └── 05-genie-space           ← Natural language analytics
-├── 04-ai-agent/
-│   └── 06-agent-creation        ← UC-function agent + Model Serving
-├── 05-lakebase/
-│   └── 07-reverse-etl-lakebase  ← KPI sync to Lakebase Postgres
-└── 06-app/
-    └── app.py                   ← Databricks App: ShopNow Ops Hub
-```
+| Capability | What You'll See |
+|-----------|-----------------|
+| **Lakeflow Pipelines** | Ingest raw CSV, JSON, and Parquet files using Autoloader; build a medallion architecture (Bronze/Silver/Gold) with built-in data quality constraints |
+| **Unity Catalog** | Tag PII columns, apply dynamic data masking, enforce row-level security, and explore automatic column-level lineage |
+| **Mosaic AI Agent** | Build a conversational AI agent backed by live SQL data, using LangGraph + Unity Catalog Functions + Foundation Model API |
+| **AI/BI Dashboards & Genie** | Create dashboards and a natural-language analytics interface so business users can ask questions without writing SQL |
+| **Lakebase** | Sync gold-layer tables to a managed PostgreSQL instance for operational applications — no external database or reverse ETL tool needed |
+| **Databricks Apps** | Deploy a FastAPI web application that combines live KPIs from Lakebase with the AI agent — hosted and managed by Databricks |
+| **Asset Bundles** | See how everything above is packaged as code and deployed with a single CLI command |
 
----
+## Prerequisites
+
+- A Databricks workspace on AWS with **Unity Catalog**, **Serverless Compute**, **Lakebase**, and **Databricks Apps** enabled
+- [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html) v0.200+ installed on your laptop
 
 ## Quick Start
 
-### Prerequisites
-- Databricks workspace with Unity Catalog, Serverless, Lakebase, and Apps enabled
-- Databricks CLI v0.200+ installed and authenticated
-
-### Deploy
-
 ```bash
-# Authenticate
-databricks auth login <your-workspace-url>
+# 1. Clone this repository
+git clone <REPO_URL>
+cd dbs-on-aws-webinar-demo
 
-# Deploy bundle (dev mode)
+# 2. Authenticate with your Databricks workspace
+databricks auth login --host <YOUR_WORKSPACE_URL>
+
+# 3. Deploy the bundle
 databricks bundle deploy
 
-# Run setup (generates data)
-databricks bundle run shopnow_orchestration --task setup
-
-# Run the full pipeline
-databricks bundle run shopnow_orchestration --task run_pipeline
-
-# Deploy agent
-databricks bundle run shopnow_orchestration --task deploy_agent
-
-# Sync KPIs to Lakebase
-databricks bundle run shopnow_orchestration --task reverse_etl
-
-# Deploy the app
-databricks bundle deploy  # app is included
+# 4. Run the full orchestration job (takes ~25 min)
+databricks bundle run shopnow_orchestration
 ```
 
-### Access the App
+That single job will:
+1. Generate synthetic e-commerce data (5K customers, 200 products, 50K orders, 200K clickstream events)
+2. Run the Lakeflow pipeline to build Bronze, Silver, and Gold tables
+3. Deploy an AI agent to a Model Serving endpoint
+4. Refresh the AI/BI dashboard
+5. Create a Lakebase instance and sync gold tables to PostgreSQL
+6. Deploy the ShopNow Ops Hub web application
 
-After deployment, the ShopNow Ops Hub is available at the URL shown in the Apps section of your workspace.
+Once the job completes, open the **Apps** page in your workspace to find the ShopNow Ops Hub URL.
 
-Set these environment variables in the App configuration:
-- `GENIE_SPACE_ID` — ID of the Genie Space (from the workspace URL)
-- `AGENT_ENDPOINT` — `shopnow-ops-agent` (auto-configured)
-- `LAKEBASE_CONN_STR` — auto-injected by Databricks Apps via the `database_instance` resource
+## Exploring the Notebooks
 
----
+After deployment, open the notebooks in your workspace and walk through them in order:
 
-## Dataset
+```
+src/
+  00-introduction.sql          Start here — overview and architecture
+  01-pipeline/
+    01-declarative-pipeline    Lakeflow: Bronze -> Silver -> Gold
+    02-pipeline-cdc            CDC processing for customer updates
+  02-governance/
+    01-unity-catalog           PII tags, masking, row filters, lineage
+  03-ai-agent/
+    01-agent-creation          Build, test, and deploy an AI agent
+  04-ai-bi/
+    01-dashboard               AI/BI dashboard queries
+    02-genie-space             Natural language analytics with Genie
+  05-lakebase/
+    01-reverse-etl-lakebase    Sync gold KPIs to Lakebase (Postgres)
+  06-app/
+    app.py                     ShopNow Ops Hub web application
+```
 
-Synthetic e-commerce data generated by `_resources/00-setup.py`:
+> **Tip:** The pipeline notebooks (`01-pipeline/`) are executed by the Lakeflow engine, not run cell-by-cell. Open them to read the code, but do not try to run them interactively.
 
-| Dataset | Format | Records | Tables |
-|---------|--------|---------|--------|
-| Customers | Parquet (CDC) | 5,000 | bronze→silver (CDC), gold_customer_ltv |
-| Products | JSON | 200 | bronze→silver, gold_top_products |
-| Orders | CSV (2 batches) | 50,000 | bronze→silver, gold_revenue_daily |
-| Clickstream | JSON | 200,000 | bronze→silver, gold_cart_abandonment |
+## Clean Up
 
----
+When you are done, remove all resources from your workspace:
 
-## Key Databricks Features Demonstrated
+```bash
+# Delete the AI agent endpoint (not managed by the bundle)
+databricks serving-endpoints delete shopnow-ops-agent
 
-| Feature | Where |
-|---------|-------|
-| Spark Declarative Pipelines (Lakeflow) | `01-declarative-pipeline.sql` |
-| Autoloader (`cloud_files`) | Bronze tables |
-| `APPLY CHANGES INTO` (CDC) | `02-pipeline-cdc.sql` |
-| Unity Catalog: tags, masking, RLS, lineage | `03-unity-catalog.sql` |
-| AI/BI Dashboard | `04-dashboard.sql` |
-| Genie Space | `05-genie-space.sql` |
-| UC Functions as Agent Tools | `06-agent-creation.py` |
-| Foundation Model API (Llama 3.3 70B) | `06-agent-creation.py` |
-| MLflow Agent tracing + UC Model Registry | `06-agent-creation.py` |
-| Model Serving endpoint | `06-agent-creation.py` |
-| Lakebase (managed Postgres) | `07-reverse-etl-lakebase.py` |
-| Databricks Apps (FastAPI + HTMX) | `06-app/app.py` |
-| Databricks Asset Bundles | `databricks.yml` + `resources/` |
+# Drop the Lakebase instance and synced tables (not managed by the bundle)
+# Run in a Databricks notebook or via the Databases UI
+
+# Destroy the bundle (removes pipeline, job, dashboard, warehouse, app, workspace files)
+databricks bundle destroy --auto-approve
+
+# Drop the schema
+# In the SQL Editor: DROP SCHEMA IF EXISTS main.aws_webinar_demo_dev CASCADE
+```
+
+## Questions or Issues?
+
+Open an issue in this repository or reach out during the workshop Q&A session.

@@ -2,7 +2,7 @@
 -- MAGIC %md
 -- MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 -- MAGIC
--- MAGIC # 3 — Governance & Security with Unity Catalog
+-- MAGIC # 2 — Governance & Security with Unity Catalog
 -- MAGIC
 -- MAGIC <img src="https://raw.githubusercontent.com/databricks-demos/dbdemos-resources/main/images/product/uc/uc-base-1.png" style="float:right; margin-left:20px" width="450px"/>
 -- MAGIC
@@ -129,4 +129,4 @@ ORDER BY entity_name;
 -- MAGIC | Least privilege | `GRANT` statements per role |
 -- MAGIC | Lineage | Auto-tracked by Unity Catalog |
 -- MAGIC
--- MAGIC **Next →** [04-dashboard: AI/BI Dashboard]($../03-aibi/04-dashboard)
+-- MAGIC **Next →** [01-agent-creation: Build an AI Agent]($../03-ai-agent/01-agent-creation)

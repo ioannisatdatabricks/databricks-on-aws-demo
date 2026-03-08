@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC <img src="https://github.com/databricks-demos/dbdemos-resources/raw/main/images/db-icon.png" style="float:left; margin-right:20px" width="60px"/>
 # MAGIC
-# MAGIC # 6 — AI Agent: ShopNow Operations Assistant
+# MAGIC # 3 — AI Agent: ShopNow Operations Assistant
 # MAGIC
 # MAGIC <img src="https://raw.githubusercontent.com/databricks-demos/dbdemos-resources/main/images/product/mosaic-ai/databricks-model-serving-mosaic-ai-agent.png" style="float:right; margin-left:20px" width="450px"/>
 # MAGIC
@@ -464,4 +464,4 @@ print(f"Granted CAN_QUERY on '{endpoint_name}' to all users.")
 # MAGIC - Is deployed as a **REST endpoint** via Model Serving, callable from any application
 # MAGIC - Is **tested end-to-end** and confirmed working
 # MAGIC
-# MAGIC **Next** [07-reverse-etl-lakebase: Sync Tables to Lakebase]($../05-lakebase/07-reverse-etl-lakebase)
+# MAGIC **Next** [01-dashboard: AI/BI Dashboard]($../04-ai-bi/01-dashboard)

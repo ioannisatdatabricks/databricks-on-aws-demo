@@ -54,7 +54,7 @@ resources:
             - task_key: run_pipeline
           environment_key: agent_env
           notebook_task:
-            notebook_path: ../src/04-ai-agent/06-agent-creation.py
+            notebook_path: ../src/03-ai-agent/01-agent-creation.py
             base_parameters:
               catalog: ${var.catalog}
               schema:  ${var.schema}
@@ -67,7 +67,7 @@ resources:
             - task_key: run_pipeline
           environment_key: lakebase_env
           notebook_task:
-            notebook_path: ../src/05-lakebase/07-reverse-etl-lakebase.py
+            notebook_path: ../src/05-lakebase/01-reverse-etl-lakebase.py
             base_parameters:
               catalog: ${var.catalog}
               schema:  ${var.schema}

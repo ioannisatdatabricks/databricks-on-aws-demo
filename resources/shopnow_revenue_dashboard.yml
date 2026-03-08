@@ -2,7 +2,7 @@ resources:
   dashboards:
     shopnow_revenue:
       display_name: "[${bundle.target}] ShopNow Revenue Intelligence"
-      file_path: ../src/03-aibi/shopnow_revenue.lvdash.json
+      file_path: ../src/04-ai-bi/shopnow_revenue.lvdash.json
       warehouse_id: ${resources.sql_warehouses.shopnow_warehouse.id}
       dataset_catalog: ${var.catalog}
       dataset_schema: ${var.schema}

@@ -94,8 +94,8 @@ GROUP BY c.customer_id, c.segment, c.country, c.is_active
 -- MAGIC
 -- MAGIC With CDC processing in place, customer profiles stay in sync with the operational DB automatically.
 -- MAGIC The `gold_customer_ltv` table is now available for:
--- MAGIC - The AI/BI Dashboard (notebook 4)
--- MAGIC - The Genie Space (notebook 5)
--- MAGIC - The AI Agent as a UC Function tool (notebook 6)
+-- MAGIC - The AI Agent as a UC Function tool (notebook 03-01)
+-- MAGIC - The AI/BI Dashboard (notebook 04-01)
+-- MAGIC - The Genie Space (notebook 04-02)
 -- MAGIC
--- MAGIC **Next →** [03-unity-catalog: Governance & Security]($../02-governance/03-unity-catalog)
+-- MAGIC **Next →** [01-unity-catalog: Governance & Security]($../02-governance/01-unity-catalog)
