@@ -22,8 +22,6 @@ targets:
   dev:
     mode: development
     default: true
-    workspace:
-      profile: psa-devday-ireland
     variables:
       catalog: main
       schema:  aws_webinar_demo_dev
