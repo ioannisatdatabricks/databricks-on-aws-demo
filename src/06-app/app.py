@@ -4,21 +4,24 @@ ShopNow Ops Hub — Databricks App
 A FastAPI + HTMX single-page application that combines:
   1. Live KPI cards (from Lakebase Postgres)
   2. AI Agent chat interface (calls the Model Serving endpoint)
+  3. Persistent chat sessions (DatabricksStore backed by Lakebase)
 
 Run locally:  uvicorn app:app --reload
 Deploy:       databricks bundle deploy && databricks bundle run shopnow_app
 """
 
 import asyncio
+import json as _json
 import logging
 import os
 import threading
 import uuid
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import HTMLResponse, JSONResponse
 import psycopg2
 import psycopg2.extras
 from databricks.sdk import WorkspaceClient
+from databricks_langchain import DatabricksStore
 
 logger = logging.getLogger("shopnow")
 
@@ -87,13 +90,21 @@ def _get_lakebase_conn():
     )
 
 
+# ---------------------------------------------------------------------------
+# Agent Memory Store (DatabricksStore backed by Lakebase)
+# ---------------------------------------------------------------------------
+
+_store = DatabricksStore(instance_name=LAKEBASE_INSTANCE, workspace_client=_w)
+
 app = FastAPI(title="ShopNow Ops Hub")
 
 
 @app.on_event("startup")
 async def startup():
-    """Generate initial token and start background refresh."""
+    """Generate initial token, init memory store, and start background refresh."""
     await asyncio.to_thread(_refresh_token)
+    await asyncio.to_thread(_store.setup)
+    logger.info("DatabricksStore initialized in Lakebase")
     t = threading.Thread(target=_token_refresh_loop, daemon=True)
     t.start()
 
@@ -152,6 +163,11 @@ MAIN_HTML = """<!DOCTYPE html>
   .chat-input button { padding: 10px 20px; background: var(--db-red); color: white;
                        border: none; border-radius: 8px; cursor: pointer; font-size: 14px; }
   .chat-input button:hover { background: #cc2b1a; }
+  .chat-btns  { display: flex; gap: 8px; padding-top: 8px; }
+  .chat-btns button { padding: 6px 14px; background: white; color: #666;
+                      border: 1px solid var(--db-border); border-radius: 6px;
+                      cursor: pointer; font-size: 12px; }
+  .chat-btns button:hover { background: var(--db-gray); }
   .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #ccc;
              border-top-color: var(--db-red); border-radius: 50%; animation: spin 0.6s linear infinite; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -160,7 +176,7 @@ MAIN_HTML = """<!DOCTYPE html>
 <body>
 
 <header>
-  <div class="logo">▲</div>
+  <div class="logo">&#9650;</div>
   <h1>ShopNow Ops Hub &nbsp;|&nbsp; Powered by Databricks on AWS</h1>
 </header>
 
@@ -169,12 +185,12 @@ MAIN_HTML = """<!DOCTYPE html>
   <!-- KPI Bar -->
   <div class="kpis" id="kpis"
        hx-get="/api/kpis" hx-trigger="load, every 60s" hx-swap="innerHTML">
-    <div class="kpi-card"><div class="value">…</div><div class="label">Loading KPIs</div></div>
+    <div class="kpi-card"><div class="value">&hellip;</div><div class="label">Loading KPIs</div></div>
   </div>
 
   <!-- Agent Chat -->
   <div class="card chat-card">
-    <h2>🤖 ShopNow Assistant</h2>
+    <h2>&#129302; ShopNow Assistant</h2>
     <div class="messages" id="messages">
       <div class="msg agent">
         Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products,
@@ -186,11 +202,35 @@ MAIN_HTML = """<!DOCTYPE html>
              onkeydown="if(event.key==='Enter') sendMessage()"/>
       <button onclick="sendMessage()">Send</button>
     </div>
+    <div class="chat-btns">
+      <button onclick="newSession()">New conversation</button>
+    </div>
   </div>
 
 </div>
 
 <script>
+// Session ID persisted in sessionStorage — survives page refresh within same tab
+let sessionId = sessionStorage.getItem('shopnow_session');
+if (!sessionId) {
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem('shopnow_session', sessionId);
+}
+
+// On page load, restore chat history from Lakebase
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res = await fetch(`/api/session/${sessionId}`);
+    const data = await res.json();
+    const messagesEl = document.getElementById('messages');
+    for (const msg of (data.messages || [])) {
+      const cls = msg.role === 'user' ? 'user' : 'agent';
+      messagesEl.innerHTML += `<div class="msg ${cls}">${escapeHtml(msg.content)}</div>`;
+    }
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+  } catch (e) { /* first visit — no history */ }
+});
+
 async function sendMessage() {
   const input   = document.getElementById('user-input');
   const messages = document.getElementById('messages');
@@ -212,7 +252,7 @@ async function sendMessage() {
     const res  = await fetch('/api/agent', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({question}),
+      body: JSON.stringify({session_id: sessionId, question: question}),
       signal: controller.signal,
     });
     clearTimeout(timeoutId);
@@ -223,6 +263,15 @@ async function sendMessage() {
   }
 
   messages.scrollTop = messages.scrollHeight;
+}
+
+function newSession() {
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem('shopnow_session', sessionId);
+  const messagesEl = document.getElementById('messages');
+  messagesEl.innerHTML = `<div class="msg agent">
+    Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products,
+    cart abandonment, or at-risk customers.</div>`;
 }
 
 function escapeHtml(s) {
@@ -298,33 +347,117 @@ async def get_kpis():
     return HTMLResponse(_render_kpi_cards(cards))
 
 
-def _query_agent(question: str) -> str:
+# ---------------------------------------------------------------------------
+# Agent Chat — session-aware with Lakebase-backed memory
+# ---------------------------------------------------------------------------
+
+def _get_session_messages(session_id: str) -> list[dict]:
+    """Retrieve conversation history for a session from DatabricksStore."""
+    namespace = ("shopnow", "sessions", session_id)
+    item = _store.get(namespace, "messages")
+    if item and item.value:
+        return item.value.get("messages", [])
+    return []
+
+
+def _save_session_messages(session_id: str, messages: list[dict]):
+    """Persist conversation history for a session to DatabricksStore."""
+    namespace = ("shopnow", "sessions", session_id)
+    _store.put(namespace, "messages", {"messages": messages})
+
+
+def _build_contextual_prompt(history: list[dict], question: str) -> str:
+    """Consolidate conversation history into a single prompt.
+
+    The LangGraph agent endpoint only accepts a single user message.
+    For follow-up questions we prepend the prior conversation as context
+    so the agent can resolve references like 'that period' or 'same product'.
+    """
+    if not history:
+        return question
+
+    # Build context from prior turns (skip the current question, already appended)
+    prior = history[:-1]  # everything before the latest user message
+    if not prior:
+        return question
+
+    lines = ["Here is our conversation so far:"]
+    for msg in prior:
+        role_label = "User" if msg["role"] == "user" else "Assistant"
+        lines.append(f"{role_label}: {msg['content']}")
+    lines.append("")
+    lines.append(f"Now answer this follow-up question: {question}")
+    return "\n".join(lines)
+
+
+def _query_agent(prompt: str) -> str:
     """Synchronous call to the agent endpoint (runs in thread pool)."""
     resp = _w.api_client.do(
         "POST",
         f"/serving-endpoints/{AGENT_ENDPOINT}/invocations",
-        body={"messages": [{"role": "user", "content": question}]},
+        body={"messages": [{"role": "user", "content": prompt}]},
     )
-    # LangGraph agent returns {"messages": [...]} — extract last AI message
-    messages = resp.get("messages", [])
-    return next(
-        (m["content"] for m in reversed(messages) if m.get("type") == "ai"),
-        resp.get("choices", [{}])[0].get("message", {}).get("content", str(resp)),
-    )
+    # LangGraph format: {"messages": [...]}
+    for m in reversed(resp.get("messages", [])):
+        if m.get("type") == "ai" and m.get("content"):
+            c = m["content"]
+            return c if isinstance(c, str) else str(c)
+    # OpenAI ChatCompletion format: {"choices": [...]}
+    for c in resp.get("choices", []):
+        content = c.get("message", {}).get("content", "")
+        if content:
+            return content
+    logger.error(f"Unexpected agent response: {_json.dumps(resp)[:500]}")
+    return f"I couldn't process that request. Please try rephrasing your question."
+
+
+@app.get("/api/session/{session_id}")
+async def get_session(session_id: str):
+    """Retrieve stored conversation history for a session."""
+    try:
+        messages = await asyncio.to_thread(_get_session_messages, session_id)
+    except Exception as e:
+        logger.error(f"Failed to load session {session_id}: {e}")
+        messages = []
+    return JSONResponse({"session_id": session_id, "messages": messages})
 
 
 @app.post("/api/agent")
 async def call_agent(request: Request):
-    """Forward question to the Model Serving agent endpoint."""
-    body     = await request.json()
+    """Forward question to the agent with full session context from Lakebase."""
+    body = await request.json()
+    session_id = body.get("session_id", str(uuid.uuid4()))
     question = body.get("question", "")
 
     try:
-        answer = await asyncio.to_thread(_query_agent, question)
+        # 1. Load conversation history from Lakebase (non-blocking on failure)
+        history = []
+        try:
+            history = await asyncio.to_thread(_get_session_messages, session_id)
+        except Exception as e:
+            logger.warning(f"Store read failed (continuing without history): {e}")
+
+        # 2. Append new user message
+        history.append({"role": "user", "content": question})
+
+        # 3. Build a single contextual prompt (endpoint only accepts one user message)
+        prompt = _build_contextual_prompt(history, question)
+
+        # 4. Call agent
+        answer = await asyncio.to_thread(_query_agent, prompt)
+
+        # 5. Persist to Lakebase (fire-and-forget on failure)
+        history.append({"role": "assistant", "content": answer})
+        try:
+            await asyncio.to_thread(_save_session_messages, session_id, history)
+        except Exception as e:
+            logger.warning(f"Store write failed: {e}")
+
     except Exception as e:
+        logger.error(f"Agent call failed: {e}", exc_info=True)
         answer = f"Agent error: {str(e)[:300]}"
 
-    return JSONResponse({"answer": answer})
+    return JSONResponse({"answer": answer, "session_id": session_id})
 
 
 # ---------------------------------------------------------------------------
@@ -342,5 +475,3 @@ def _render_kpi_cards(cards: list) -> str:
           {delta_html}
         </div>"""
     return html
-
-

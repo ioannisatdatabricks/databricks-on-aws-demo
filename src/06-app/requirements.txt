@@ -2,3 +2,4 @@ fastapi>=0.111.0
 uvicorn>=0.29.0
 psycopg2-binary>=2.9.9
 databricks-sdk>=0.89.0
+databricks-langchain[memory]

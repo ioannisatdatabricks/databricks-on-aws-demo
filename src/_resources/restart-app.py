@@ -87,10 +87,18 @@ cur.execute(
 )
 print(f"Set databricks_auth security label for SP (id={sp_db_id})")
 
-# Grant schema + table access
+# Grant schema + table access (synced tables)
 cur.execute(f'GRANT USAGE ON SCHEMA {schema} TO "{sp_client_id}"')
 cur.execute(f'GRANT SELECT ON ALL TABLES IN SCHEMA {schema} TO "{sp_client_id}"')
 print(f"Granted PG schema access on {schema}")
+
+# Grant public schema access for DatabricksStore (agent memory tables)
+cur.execute(f'GRANT USAGE ON SCHEMA public TO "{sp_client_id}"')
+cur.execute(f'GRANT CREATE ON SCHEMA public TO "{sp_client_id}"')
+cur.execute(f'GRANT ALL ON ALL TABLES IN SCHEMA public TO "{sp_client_id}"')
+# Ensure future tables created by setup() are also accessible
+cur.execute(f'ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "{sp_client_id}"')
+print("Granted PG public schema access for agent memory store")
 
 conn.close()
 
