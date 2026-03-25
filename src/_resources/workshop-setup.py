@@ -86,10 +86,11 @@ if existing_wh:
     print(f"Reusing existing warehouse '{warehouse_name}' (id={warehouse_id})")
 else:
     print(f"Creating warehouse '{warehouse_name}'...")
+    from databricks.sdk.service.sql import CreateWarehouseRequestWarehouseType
     wh = w.warehouses.create_and_wait(
         name=warehouse_name,
         cluster_size="2X-Small",
-        warehouse_type="PRO",
+        warehouse_type=CreateWarehouseRequestWarehouseType.PRO,
         enable_serverless_compute=True,
         max_num_clusters=2,
         min_num_clusters=1,
