@@ -341,19 +341,24 @@ mlflow.models.set_model(agent)
         f.write(agent_code)
 
     input_example = {"messages": [{"role": "user", "content": "What was revenue last week?"}]}
-    output_example = {"id": "1", "object": "chat.completion", "created": 0, "model": "agent",
-                      "choices": [{"index": 0, "message": {"role": "assistant", "content": "test"}, "finish_reason": "stop"}],
-                      "usage": {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0}}
-    signature = mlflow.models.infer_signature(input_example, output_example)
+
+    # Explicitly declare UC function resources for the serving endpoint SP
+    uc_functions = [
+        f"{catalog}.{schema}.get_revenue_summary",
+        f"{catalog}.{schema}.get_top_products",
+        f"{catalog}.{schema}.get_abandonment_rate",
+        f"{catalog}.{schema}.get_at_risk_customers",
+    ]
+    resources = [mlflow.models.resources.DatabricksFunction(function_name=fn) for fn in uc_functions]
 
     with mlflow.start_run(run_name="shopnow-ops-agent"):
         model_info = mlflow.langchain.log_model(
             lc_model=agent_code_path,
-            artifact_path="agent",
+            name="agent",
             pip_requirements=["databricks-langchain", "langchain", "langgraph", "mlflow"],
             input_example=input_example,
-            signature=signature,
             registered_model_name=model_fqn,
+            resources=resources,
         )
         print(f"Model logged: {model_info.model_uri}")
 
