@@ -64,7 +64,7 @@ synced_tables = [
 
 for table_name in synced_tables:
     try:
-        w.api_client.do("DELETE", f"/api/2.0/databases/synced-tables/{table_name}")
+        w.api_client.do("DELETE", f"/api/2.0/database/synced_tables/{table_name}")
         print(f"Deleted synced table: {table_name}")
     except Exception as e:
         if "NOT_FOUND" in str(e) or "does not exist" in str(e):
@@ -73,7 +73,7 @@ for table_name in synced_tables:
             print(f"Error deleting synced table {table_name}: {e}")
 
 try:
-    w.api_client.do("DELETE", f"/api/2.0/databases/instances/{LAKEBASE_INSTANCE}")
+    w.api_client.do("DELETE", f"/api/2.0/database/instances/{LAKEBASE_INSTANCE}")
     print(f"Deleted Lakebase instance: {LAKEBASE_INSTANCE}")
 except Exception as e:
     if "NOT_FOUND" in str(e) or "does not exist" in str(e):
