@@ -10,9 +10,10 @@
 # MAGIC 2. Lakebase synced tables + instance
 # MAGIC 3. Databricks App
 # MAGIC 4. Lakeview dashboard
-# MAGIC 5. Lakeflow pipeline
-# MAGIC 6. SQL warehouse
-# MAGIC 7. Unity Catalog schema (CASCADE — drops all tables, functions, models, volumes)
+# MAGIC 5. Orchestration job
+# MAGIC 6. Lakeflow pipeline
+# MAGIC 7. SQL warehouse
+# MAGIC 8. Unity Catalog schema (CASCADE — drops all tables, functions, models, volumes)
 
 # COMMAND ----------
 
@@ -134,7 +135,29 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 5 — Delete Lakeflow Pipeline
+# MAGIC ## 5 — Delete Orchestration Job
+
+# COMMAND ----------
+
+job_name = f"ShopNow — Full Demo Orchestration ({schema})"
+
+try:
+    found = False
+    for j in w.jobs.list(name=job_name):
+        if j.settings.name == job_name:
+            w.jobs.delete(job_id=j.job_id)
+            print(f"Deleted job: {j.settings.name} (id={j.job_id})")
+            found = True
+            break
+    if not found:
+        print(f"Job '{job_name}' not found (skipped).")
+except Exception as e:
+    print(f"Error deleting job: {e}")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## 6 — Delete Lakeflow Pipeline
 
 # COMMAND ----------
 
@@ -154,7 +177,7 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 6 — Delete SQL Warehouse
+# MAGIC ## 7 — Delete SQL Warehouse
 
 # COMMAND ----------
 
@@ -174,7 +197,7 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## 7 — Drop Unity Catalog Schema
+# MAGIC ## 8 — Drop Unity Catalog Schema
 # MAGIC
 # MAGIC This removes all tables, functions, registered models, and volumes within the schema.
 
@@ -204,5 +227,6 @@ print(f"  Lakebase:  {LAKEBASE_INSTANCE}")
 print(f"  App:       {app_name}")
 print(f"  Dashboard: {dashboard_display_name}")
 print(f"  Pipeline:  {pipeline_name}")
+print(f"  Job:       {job_name}")
 print(f"  Warehouse: {warehouse_name}")
 print("=" * 70)
