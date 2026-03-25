@@ -227,15 +227,20 @@ qualified = qualified.replace("from gold_",      f"from {catalog}.{schema}.gold_
 
 dashboard_display_name = f"ShopNow Revenue Intelligence ({schema})"
 
-# Idempotent: check for existing dashboard
-existing_dash = [
-    d for d in w.lakeview.list()
-    if d.display_name == dashboard_display_name
-]
+# Idempotent: search for existing dashboard via REST API (w.lakeview.list() may
+# not be available on all SDK versions installed in workspace runtimes).
+existing_dash_id = None
+try:
+    resp = w.api_client.do("GET", "/api/2.0/lakeview/dashboards", query={"page_size": 100})
+    for d in resp.get("dashboards", []):
+        if d.get("display_name") == dashboard_display_name:
+            existing_dash_id = d["dashboard_id"]
+            break
+except Exception:
+    pass  # First deploy — no dashboards yet
 
-if existing_dash:
-    dashboard_id = existing_dash[0].dashboard_id
-    # Update in place
+if existing_dash_id:
+    dashboard_id = existing_dash_id
     w.lakeview.update(
         dashboard_id=dashboard_id,
         display_name=dashboard_display_name,

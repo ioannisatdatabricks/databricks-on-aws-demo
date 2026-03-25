@@ -118,12 +118,16 @@ except Exception as e:
 dashboard_display_name = f"ShopNow Revenue Intelligence ({schema})"
 
 try:
-    for d in w.lakeview.list():
-        if d.display_name == dashboard_display_name:
-            w.lakeview.trash(dashboard_id=d.dashboard_id)
-            print(f"Trashed dashboard: {d.display_name} (id={d.dashboard_id})")
+    # Use REST API to find dashboard (w.lakeview.list() may not exist on all SDK versions)
+    resp = w.api_client.do("GET", "/api/2.0/lakeview/dashboards", query={"page_size": 100})
+    found = False
+    for d in resp.get("dashboards", []):
+        if d.get("display_name") == dashboard_display_name:
+            w.lakeview.trash(dashboard_id=d["dashboard_id"])
+            print(f"Trashed dashboard: {d['display_name']} (id={d['dashboard_id']})")
+            found = True
             break
-    else:
+    if not found:
         print(f"Dashboard '{dashboard_display_name}' not found (skipped).")
 except Exception as e:
     print(f"Error deleting dashboard: {e}")
