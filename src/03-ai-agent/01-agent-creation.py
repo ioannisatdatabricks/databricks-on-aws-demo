@@ -158,7 +158,9 @@ print(f"Using {catalog}.{schema}")
 
 import mlflow
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit
-from langchain.agents import create_react_agent
+import warnings
+warnings.filterwarnings("ignore", message="create_react_agent has been moved")
+from langgraph.prebuilt import create_react_agent
 
 mlflow.langchain.autolog()
 
@@ -282,7 +284,9 @@ else:
 import mlflow
 from datetime import date
 from databricks_langchain import ChatDatabricks, UCFunctionToolkit
-from langchain.agents import create_react_agent
+import warnings
+warnings.filterwarnings("ignore", message="create_react_agent has been moved")
+from langgraph.prebuilt import create_react_agent
 
 mlflow.langchain.autolog()
 
