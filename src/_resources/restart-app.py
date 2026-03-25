@@ -8,11 +8,21 @@
 
 # COMMAND ----------
 
+# Install dependencies (needed when running outside the DAB job environment)
+try:
+    import psycopg2
+except ImportError:
+    %pip install "databricks-sdk>=0.89.0" psycopg2-binary -q
+    dbutils.library.restartPython()
+
+# COMMAND ----------
+
 dbutils.widgets.text("catalog",          "", "Catalog")
 dbutils.widgets.text("schema",           "", "Schema")
 dbutils.widgets.text("source_path",      "", "App source code path")
 dbutils.widgets.text("agent_endpoint",   "", "Agent serving endpoint name")
 dbutils.widgets.text("lakebase_instance","", "Lakebase Provisioned instance name")
+dbutils.widgets.text("app_name",         "shopnow-ops-hub", "App name")
 
 catalog          = dbutils.widgets.get("catalog")
 schema           = dbutils.widgets.get("schema")
@@ -31,7 +41,7 @@ from databricks.sdk import WorkspaceClient
 
 w = WorkspaceClient()
 
-APP_NAME = "shopnow-ops-hub"
+APP_NAME = dbutils.widgets.get("app_name")
 
 # Look up the app's service principal client ID
 app_info = w.apps.get(name=APP_NAME)

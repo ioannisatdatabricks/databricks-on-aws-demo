@@ -18,6 +18,12 @@
 
 -- COMMAND ----------
 
+-- Widget declarations (used when running interactively outside the DAB job)
+CREATE WIDGET TEXT catalog DEFAULT 'main';
+CREATE WIDGET TEXT schema DEFAULT 'aws_webinar_demo';
+
+-- COMMAND ----------
+
 -- MAGIC %md
 -- MAGIC ## 1 — Tagging PII Columns
 

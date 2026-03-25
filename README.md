@@ -21,7 +21,7 @@ You will follow **ShopNow**, a fictional e-commerce retailer, as it builds a com
 - A Databricks workspace on AWS with **Unity Catalog**, **Serverless Compute**, **Lakebase**, and **Databricks Apps** enabled
 - [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html) v0.200+ installed on your laptop
 
-## Quick Start
+## Option A: Quick Start with Asset Bundles (CLI)
 
 ```bash
 # 1. Clone this repository
@@ -47,6 +47,48 @@ That single job will:
 6. Deploy the ShopNow Ops Hub web application
 
 Once the job completes, open the **Apps** page in your workspace to find the ShopNow Ops Hub URL.
+
+## Option B: Workspace-Only (No CLI Required)
+
+If you prefer to work entirely within the Databricks workspace — no local CLI installation needed.
+
+### 1. Clone this repository as a Git Folder
+
+1. In your Databricks workspace, go to **Workspace** > **Users** > your username
+2. Click **Create** > **Git Folder**
+3. Enter the repository URL: `<REPO_URL>`
+4. Click **Create Git Folder**
+
+### 2. Run the workshop setup notebook
+
+1. Open `src/_resources/workshop-setup`
+2. Set the widgets at the top of the notebook:
+   - **Catalog**: `main` (or your catalog)
+   - **Schema**: `aws_webinar_demo` (use a unique name if sharing a workspace with others)
+   - **Volume**: `raw_data`
+3. Click **Run All** — this generates data, creates a SQL warehouse, starts the Lakeflow pipeline, deploys the dashboard, and creates the app shell (~10 min)
+
+### 3. Walk through the notebooks in order
+
+After the pipeline completes, follow the notebooks:
+
+| # | Notebook | Action |
+|---|---------|--------|
+| 0 | `src/00-introduction` | Read — architecture overview |
+| 1 | `src/01-pipeline/01-declarative-pipeline` | **Read only** — executed by the pipeline engine |
+| 1 | `src/01-pipeline/02-pipeline-cdc` | **Read only** — executed by the pipeline engine |
+| 2 | `src/02-governance/01-unity-catalog` | **Run interactively** (set widgets: catalog, schema) |
+| 3 | `src/03-ai-agent/01-agent-creation` | **Run interactively** (~20 min for endpoint deploy) |
+| 4 | `src/04-ai-bi/01-dashboard` | Read — open the dashboard in the UI instead |
+| 4 | `src/04-ai-bi/02-genie-space` | Read — illustrative queries |
+| 5 | `src/05-lakebase/01-reverse-etl-lakebase` | **Run interactively** |
+| 6 | `src/_resources/restart-app` | **Run** after agent + Lakebase are ready |
+
+> **Tip:** The pipeline notebooks (`01-pipeline/`) are executed by the Lakeflow engine, not run cell-by-cell. Open them to read the code, but do not try to run them interactively.
+
+### 4. Clean up
+
+Open and run `src/_resources/workshop-cleanup` to remove all created resources.
 
 ## Exploring the Notebooks
 
@@ -75,7 +117,7 @@ src/
 
 ## Clean Up
 
-When you are done, remove all resources from your workspace:
+### If you used Option A (Asset Bundles)
 
 ```bash
 # Delete the AI agent endpoint (not managed by the bundle)
@@ -90,6 +132,11 @@ databricks bundle destroy --auto-approve
 # Drop the schema
 # In the SQL Editor: DROP SCHEMA IF EXISTS main.aws_webinar_demo_dev CASCADE
 ```
+
+### If you used Option B (Workspace-Only)
+
+Open and run `src/_resources/workshop-cleanup` in your workspace. It deletes all resources
+(agent endpoint, Lakebase, app, dashboard, pipeline, warehouse, and the UC schema) in one go.
 
 ## Questions or Issues?
 

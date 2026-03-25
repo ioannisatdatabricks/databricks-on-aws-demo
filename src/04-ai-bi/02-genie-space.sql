@@ -20,7 +20,16 @@
 -- MAGIC | "Who are our highest-value Premium customers?" | `gold_customer_ltv` |
 -- MAGIC
 -- MAGIC ---
--- MAGIC
+
+-- COMMAND ----------
+
+-- Widget declarations (used when running interactively outside the DAB job)
+CREATE WIDGET TEXT catalog DEFAULT 'main';
+CREATE WIDGET TEXT schema DEFAULT 'aws_webinar_demo';
+
+-- COMMAND ----------
+
+-- MAGIC %md
 -- MAGIC ## Setting Up the Genie Space
 -- MAGIC
 -- MAGIC The Genie Space is configured in the workspace UI (**Genie** section), but the queries

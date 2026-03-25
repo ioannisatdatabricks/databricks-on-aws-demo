@@ -21,6 +21,15 @@
 
 # COMMAND ----------
 
+# Install dependencies (needed when running outside the DAB job environment)
+try:
+    import psycopg2
+except ImportError:
+    %pip install "databricks-sdk>=0.89.0" psycopg2-binary -q
+    dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Setup
 

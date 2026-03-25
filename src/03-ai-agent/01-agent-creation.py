@@ -19,6 +19,15 @@
 
 # COMMAND ----------
 
+# Install dependencies (needed when running outside the DAB job environment)
+try:
+    import databricks_langchain
+except ImportError:
+    %pip install databricks-langchain databricks-agents mlflow langchain langgraph -q
+    dbutils.library.restartPython()
+
+# COMMAND ----------
+
 # MAGIC %md
 # MAGIC ## Setup
 

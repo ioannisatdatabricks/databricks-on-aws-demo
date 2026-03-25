@@ -150,9 +150,12 @@
 -- MAGIC - Lakebase Provisioned enabled
 -- MAGIC - Databricks Apps enabled
 -- MAGIC
--- MAGIC **Option A — One-click:** Deploy the bundle and run the orchestration job (see above)
+-- MAGIC **Option A — Asset Bundles (CLI):** Deploy the bundle and run the orchestration job (see above)
 -- MAGIC
--- MAGIC **Option B — Step-by-step:** Follow the notebooks in order (01 → 06), running each interactively
+-- MAGIC **Option B — Workspace-Only (No CLI):** Clone this repo as a **Git Folder** in your workspace,
+-- MAGIC then run [`src/_resources/workshop-setup`]($./_ resources/workshop-setup) to create all resources
+-- MAGIC (warehouse, pipeline, dashboard, app) directly from a notebook. Walk through the demo notebooks
+-- MAGIC in order after setup completes.
 -- MAGIC
 -- MAGIC > **Note:** The pipeline notebooks (`01-pipeline/`) are run by the Lakeflow engine, not cell-by-cell. Open them to read the code, but use the orchestration job or the pipeline UI to execute them.
 

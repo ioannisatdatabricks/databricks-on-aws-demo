@@ -50,6 +50,21 @@ databricks bundle deploy
 
 > **Do NOT run the job yet** — you will trigger it live during the demo.
 
+### Alternative: Participant-Led Workshop Mode
+
+If participants will deploy the demo themselves (no pre-deployment by instructor):
+
+1. Share the GitHub repo URL with participants
+2. Each participant clones it as a **Git Folder** in their workspace
+3. Each participant runs `src/_resources/workshop-setup` with a **unique schema name**
+   (e.g., `aws_webinar_demo_<first_name>`) to avoid resource conflicts
+4. Walk through notebooks in presentation order — participants follow along in their own workspace
+
+**Timing impact:** The workshop-setup notebook takes ~10 minutes (data generation + pipeline run).
+Add 10 minutes to the overall timing or have participants start setup during introductions.
+
+**Cleanup:** Each participant runs `src/_resources/workshop-cleanup` when done.
+
 ### 4. Prepare Your Browser
 
 Open these tabs in advance (you will switch between them during the demo):
