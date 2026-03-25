@@ -76,8 +76,8 @@ print(f"Using {catalog}.{schema}")
 # MAGIC %sql
 # MAGIC -- Tool 2: Get top N products by revenue
 # MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_top_products(
-# MAGIC   n        INT     COMMENT 'Number of top products to return (e.g. 10)',
-# MAGIC   cat_filter STRING  COMMENT 'Category filter, e.g. Electronics. Pass empty string for all categories.'
+# MAGIC   n          INT    COMMENT 'Number of top products to return. Always provide a value, e.g. 10',
+# MAGIC   cat_filter STRING COMMENT 'Category name to filter by, e.g. Electronics, Books, Clothing, Sports, Home & Garden. Use empty string to get all categories.'
 # MAGIC )
 # MAGIC RETURNS TABLE (
 # MAGIC   product_name    STRING,
@@ -88,7 +88,7 @@ print(f"Using {catalog}.{schema}")
 # MAGIC   margin_pct      DOUBLE,
 # MAGIC   return_rate_pct DOUBLE
 # MAGIC )
-# MAGIC COMMENT 'Returns top N products ranked by total revenue, optionally filtered by category'
+# MAGIC COMMENT 'Returns top N products ranked by total revenue. Set cat_filter to a category name or empty string for all.'
 # MAGIC RETURN
 # MAGIC   SELECT product_name, category, brand, units_sold, total_revenue, margin_pct, return_rate_pct
 # MAGIC   FROM (
@@ -103,7 +103,7 @@ print(f"Using {catalog}.{schema}")
 # MAGIC %sql
 # MAGIC -- Tool 3: Get cart abandonment rate
 # MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_abandonment_rate(
-# MAGIC   days_back INT COMMENT 'How many days back to look, e.g. 7 for last week'
+# MAGIC   days_back INT COMMENT 'Number of days to look back. Always provide a value, e.g. 7 for last week, 30 for last month. Use 30 if unclear.'
 # MAGIC )
 # MAGIC RETURNS TABLE (
 # MAGIC   day                  DATE,
@@ -129,8 +129,8 @@ print(f"Using {catalog}.{schema}")
 # MAGIC %sql
 # MAGIC -- Tool 4: Get high-value customers at risk (no order in N days)
 # MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_at_risk_customers(
-# MAGIC   min_ltv       DOUBLE COMMENT 'Minimum lifetime value threshold, e.g. 500.0',
-# MAGIC   inactive_days INT    COMMENT 'Inactive for at least this many days, e.g. 60'
+# MAGIC   min_ltv       DOUBLE COMMENT 'Minimum lifetime value threshold. Always provide a value, e.g. 500.0. Use 100.0 if unclear.',
+# MAGIC   inactive_days INT    COMMENT 'Minimum days since last order. Always provide a value, e.g. 60. Use 30 if unclear.'
 # MAGIC )
 # MAGIC RETURNS TABLE (
 # MAGIC   customer_id          STRING,
@@ -164,7 +164,7 @@ mlflow.langchain.autolog()
 
 # LLM: use Databricks-hosted Meta Llama (Foundation Model API)
 llm = ChatDatabricks(
-    endpoint="databricks-meta-llama-3-3-70b-instruct",
+    endpoint="databricks-claude-sonnet-4-6",
     temperature=0.1,
     max_tokens=2048,
 )
@@ -290,7 +290,7 @@ CATALOG = "{catalog}"
 SCHEMA  = "{schema}"
 
 llm = ChatDatabricks(
-    endpoint="databricks-meta-llama-3-3-70b-instruct",
+    endpoint="databricks-claude-sonnet-4-6",
     temperature=0.1,
     max_tokens=2048,
 )
