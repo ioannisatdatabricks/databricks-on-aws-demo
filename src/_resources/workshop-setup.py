@@ -208,19 +208,11 @@ try:
     print(f"App '{app_name}' already exists.")
 except Exception:
     print(f"Creating app '{app_name}'...")
-    app = w.api_client.do("POST", "/api/2.0/apps", body={
+    w.api_client.do("POST", "/api/2.0/apps", body={
         "name": app_name,
         "description": "ShopNow Ops Hub — Live KPIs and AI Agent",
     })
-    import time as _time
-    for _ in range(60):
-        status = w.api_client.do("GET", f"/api/2.0/apps/{app_name}")
-        state = status.get("status", {}).get("state", status.get("compute_status", {}).get("state", "UNKNOWN"))
-        if state in ("IDLE", "ACTIVE", "RUNNING"):
-            break
-        print(f"  Waiting for app (state={state})...")
-        _time.sleep(10)
-    print(f"App '{app_name}' created.")
+    print(f"App '{app_name}' created (compute starts in background).")
 
 # COMMAND ----------
 
@@ -242,9 +234,9 @@ if existing_jobs:
     print(f"Reusing existing job '{job_name}' (id={job_id})")
 else:
     print(f"Creating job '{job_name}'...")
-    job = w.jobs.create(
-        name=job_name,
-        environments=[
+    resp = w.api_client.do("POST", "/api/2.1/jobs/create", body={
+        "name": job_name,
+        "environments": [
             {
                 "environment_key": "agent_env",
                 "spec": {
@@ -269,7 +261,7 @@ else:
                 },
             },
         ],
-        tasks=[
+        "tasks": [
             {
                 "task_key": "setup",
                 "description": "Generate synthetic data into Unity Catalog Volume",
@@ -285,7 +277,7 @@ else:
             },
             {
                 "task_key": "run_pipeline",
-                "description": "Trigger the Lakeflow pipeline (Bronze → Silver → Gold)",
+                "description": "Trigger the Lakeflow pipeline (Bronze -> Silver -> Gold)",
                 "max_retries": 0,
                 "depends_on": [{"task_key": "setup"}],
                 "pipeline_task": {
@@ -353,13 +345,13 @@ else:
                 },
             },
         ],
-    )
-    job_id = job.job_id
+    })
+    job_id = resp["job_id"]
     print(f"Created job '{job_name}' (id={job_id})")
 
 # Trigger the job
-run = w.jobs.run_now(job_id=job_id)
-run_id = run.run_id
+run_resp = w.api_client.do("POST", "/api/2.1/jobs/run-now", body={"job_id": job_id})
+run_id = run_resp["run_id"]
 print(f"\nJob triggered! Run ID: {run_id}")
 print(f"Monitor progress at: Workflows > Jobs > '{job_name}'")
 
