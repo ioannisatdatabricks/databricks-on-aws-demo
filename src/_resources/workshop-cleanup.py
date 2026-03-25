@@ -108,6 +108,15 @@ try:
 except Exception as e:
     print(f"App '{app_name}' not found or already deleted: {e}")
 
+# Delete the copied app source directory (created by restart-app in workshop mode)
+try:
+    my_user = w.current_user.me().user_name
+    app_deploy_dir = f"/Workspace/Users/{my_user}/apps/{app_name}"
+    w.workspace.delete(app_deploy_dir, recursive=True)
+    print(f"Deleted app deploy directory: {app_deploy_dir}")
+except Exception:
+    pass  # Directory may not exist (DAB mode or already cleaned up)
+
 # COMMAND ----------
 
 # MAGIC %md

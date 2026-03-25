@@ -126,30 +126,39 @@ from databricks.sdk.service.workspace import ImportFormat, ExportFormat
 
 app = w.apps.get(APP_NAME)
 
-# Determine the deploy target: use the app's default path, or create one.
-# Git Folder paths are NOT valid for app deployment — files must be in a
-# regular workspace directory.
+# Determine the deploy target.
+# - DAB mode: source_path is a regular workspace path (e.g., .bundle/.../files/src/06-app)
+#   and can be used directly — no copy needed.
+# - Workshop mode: source_path is a Git Folder path, which is NOT valid for app deployment.
+#   We must copy files to a regular workspace directory.
+is_git_folder = source_path and ("/Repos/" in source_path or ".bundle/" not in source_path)
 deploy_path = app.default_source_code_path
-if not deploy_path:
+
+if deploy_path and not is_git_folder:
+    # DAB mode — deploy_path already set from previous deployment, source is a regular path
+    print(f"Using existing deploy path: {deploy_path}")
+elif not is_git_folder and source_path:
+    # DAB mode, first deployment — use source_path directly
+    deploy_path = source_path
+    print(f"Using source path directly: {deploy_path}")
+else:
+    # Workshop mode — copy files from Git Folder to a regular workspace directory
+    if not source_path:
+        raise RuntimeError("source_path parameter is required (path to the 06-app directory).")
     my_user = w.current_user.me().user_name
     deploy_path = f"/Workspace/Users/{my_user}/apps/{APP_NAME}"
-
-if not source_path:
-    raise RuntimeError("source_path parameter is required (path to the 06-app directory).")
-
-# Ensure deploy directory exists, then copy app source files
-print(f"Copying app files from '{source_path}' to '{deploy_path}'...")
-w.workspace.mkdirs(deploy_path)
-for filename in ("app.py", "requirements.txt"):
-    try:
-        export_resp = w.workspace.export(path=f"{source_path}/{filename}", format=ExportFormat.AUTO)
-        import base64
-        content = base64.b64decode(export_resp.content)
-        w.workspace.upload(f"{deploy_path}/{filename}", io.BytesIO(content),
-                           format=ImportFormat.AUTO, overwrite=True)
-        print(f"  Copied {filename}")
-    except Exception as e:
-        print(f"  Warning: could not copy {filename}: {e}")
+    print(f"Copying app files from '{source_path}' to '{deploy_path}'...")
+    w.workspace.mkdirs(deploy_path)
+    for filename in ("app.py", "requirements.txt"):
+        try:
+            export_resp = w.workspace.export(path=f"{source_path}/{filename}", format=ExportFormat.AUTO)
+            import base64
+            content = base64.b64decode(export_resp.content)
+            w.workspace.upload(f"{deploy_path}/{filename}", io.BytesIO(content),
+                               format=ImportFormat.AUTO, overwrite=True)
+            print(f"  Copied {filename}")
+        except Exception as e:
+            print(f"  Warning: could not copy {filename}: {e}")
 
 # Write app.yaml — no PG credentials needed (app uses OAuth tokens via SDK)
 app_yaml = f"""\
