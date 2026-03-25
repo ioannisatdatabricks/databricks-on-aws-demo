@@ -366,36 +366,29 @@ def _save_session_messages(session_id: str, messages: list[dict]):
     _store.put(namespace, "messages", {"messages": messages})
 
 
-def _build_contextual_prompt(history: list[dict], question: str) -> str:
-    """Consolidate conversation history into a single prompt.
+def _query_agent(messages: list[dict]) -> str:
+    """Call the agent endpoint with conversation context.
 
-    The LangGraph agent endpoint only accepts a single user message.
-    For follow-up questions we prepend the prior conversation as context
-    so the agent can resolve references like 'that period' or 'same product'.
+    The LangGraph agent endpoint returns empty responses for multi-turn message
+    arrays. Instead, we consolidate the conversation history into a single user
+    message so the agent can resolve follow-up references like 'that period'.
     """
-    if not history:
-        return question
+    if len(messages) > 1:
+        # Pack history into a single user message
+        lines = ["Here is our conversation so far:"]
+        for msg in messages[:-1]:
+            role_label = "User" if msg["role"] == "user" else "Assistant"
+            lines.append(f"{role_label}: {msg['content']}")
+        lines.append("")
+        lines.append(f"Now answer this follow-up question: {messages[-1]['content']}")
+        payload = [{"role": "user", "content": "\n".join(lines)}]
+    else:
+        payload = messages
 
-    # Build context from prior turns (skip the current question, already appended)
-    prior = history[:-1]  # everything before the latest user message
-    if not prior:
-        return question
-
-    lines = ["Here is our conversation so far:"]
-    for msg in prior:
-        role_label = "User" if msg["role"] == "user" else "Assistant"
-        lines.append(f"{role_label}: {msg['content']}")
-    lines.append("")
-    lines.append(f"Now answer this follow-up question: {question}")
-    return "\n".join(lines)
-
-
-def _query_agent(prompt: str) -> str:
-    """Synchronous call to the agent endpoint (runs in thread pool)."""
     resp = _w.api_client.do(
         "POST",
         f"/serving-endpoints/{AGENT_ENDPOINT}/invocations",
-        body={"messages": [{"role": "user", "content": prompt}]},
+        body={"messages": payload},
     )
     # LangGraph format: {"messages": [...]}
     for m in reversed(resp.get("messages", [])):
@@ -440,11 +433,8 @@ async def call_agent(request: Request):
         # 2. Append new user message
         history.append({"role": "user", "content": question})
 
-        # 3. Build a single contextual prompt (endpoint only accepts one user message)
-        prompt = _build_contextual_prompt(history, question)
-
-        # 4. Call agent
-        answer = await asyncio.to_thread(_query_agent, prompt)
+        # 3. Send full conversation history to the agent endpoint
+        answer = await asyncio.to_thread(_query_agent, history)
 
         # 5. Persist to Lakebase (fire-and-forget on failure)
         history.append({"role": "assistant", "content": answer})

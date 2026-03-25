@@ -77,7 +77,7 @@ print(f"Using {catalog}.{schema}")
 # MAGIC -- Tool 2: Get top N products by revenue
 # MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_top_products(
 # MAGIC   n        INT     COMMENT 'Number of top products to return (e.g. 10)',
-# MAGIC   cat_filter STRING  COMMENT 'Optional category filter, e.g. Electronics. Pass NULL for all.'
+# MAGIC   cat_filter STRING  COMMENT 'Category filter, e.g. Electronics. Pass empty string for all categories.'
 # MAGIC )
 # MAGIC RETURNS TABLE (
 # MAGIC   product_name    STRING,
@@ -94,7 +94,7 @@ print(f"Using {catalog}.{schema}")
 # MAGIC   FROM (
 # MAGIC     SELECT *, ROW_NUMBER() OVER (ORDER BY total_revenue DESC) AS rn
 # MAGIC     FROM   ${catalog}.${schema}.gold_top_products
-# MAGIC     WHERE  category = COALESCE(cat_filter, category)
+# MAGIC     WHERE  category = COALESCE(NULLIF(cat_filter, ''), category)
 # MAGIC   )
 # MAGIC   WHERE rn <= n
 
