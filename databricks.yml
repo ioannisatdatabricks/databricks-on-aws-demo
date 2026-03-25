@@ -15,9 +15,6 @@ variables:
     default: ""
     description: Email address for job failure notifications
 
-workspace:
-  root_path: ~/${bundle.name}/${bundle.target}
-
 targets:
   dev:
     mode: development
