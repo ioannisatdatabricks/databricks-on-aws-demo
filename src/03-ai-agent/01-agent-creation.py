@@ -342,6 +342,17 @@ mlflow.models.set_model(agent)
 
     input_example = {"messages": [{"role": "user", "content": "What was revenue last week?"}]}
 
+    # ChatCompletionResponse-compatible signature required by agents.deploy()
+    output_example = {
+        "id": "1",
+        "object": "chat.completion",
+        "created": 1,
+        "model": "agent",
+        "choices": [{"index": 0, "message": {"role": "assistant", "content": "Revenue was $1M."}, "finish_reason": "stop"}],
+        "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+    }
+    signature = mlflow.models.infer_signature(input_example, output_example)
+
     # Explicitly declare UC function resources for the serving endpoint SP
     uc_functions = [
         f"{catalog}.{schema}.get_revenue_summary",
@@ -357,6 +368,7 @@ mlflow.models.set_model(agent)
             name="agent",
             pip_requirements=["databricks-langchain", "langchain", "langgraph", "mlflow"],
             input_example=input_example,
+            signature=signature,
             registered_model_name=model_fqn,
             resources=resources,
         )
