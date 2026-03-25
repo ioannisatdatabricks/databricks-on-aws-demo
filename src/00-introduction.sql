@@ -29,6 +29,7 @@
 -- MAGIC | **Mosaic AI** | Build and deploy AI agents with tool calling | LangChain + external LLM + custom infra |
 -- MAGIC | **Lakebase** | Managed PostgreSQL with automatic table sync | RDS + Fivetran / Airbyte |
 -- MAGIC | **Databricks Apps** | Host web applications on the platform | EC2 / ECS / Lambda + API Gateway |
+-- MAGIC | **One Chat** | Ask any question across all your data assets in natural language | Manual SQL exploration across schemas |
 -- MAGIC | **Asset Bundles** | Infrastructure-as-code for all of the above | Terraform + CI/CD pipelines |
 -- MAGIC
 -- MAGIC All of these share the same **security model**, **identity system**, and **metadata catalog**. Data never leaves the platform boundary.

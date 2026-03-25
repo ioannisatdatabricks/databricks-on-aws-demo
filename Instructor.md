@@ -85,7 +85,8 @@ Open these tabs in advance (you will switch between them during the demo):
 | 0:30 | AI/BI Dashboard + Genie | 10 min | **Fill the agent deploy wait** |
 | 0:40 | Lakebase Reverse ETL | 7 min | Show synced tables, Postgres connectivity |
 | 0:47 | Databricks App | 8 min | Live demo of the ShopNow Ops Hub |
-| 0:55 | Wrap-up + Q&A | 5 min | Recap differentiators |
+| 0:52 | Databricks One Chat | 5 min | Cross-asset questions that Genie/Agent can't answer |
+| 0:57 | Wrap-up + Q&A | 3 min | Recap differentiators |
 
 > **Key timing trick:** The agent serving endpoint takes ~20 minutes to deploy. You kick it off at ~0:22, then cover Dashboard + Genie + Lakebase (~17 min). By the time you demo the App at ~0:47, the agent endpoint is ready and the app can chat with it live.
 
@@ -273,7 +274,7 @@ If running this live (not from pre-deployed state), trigger the deploy_agent tas
 
 ---
 
-### 0:47 — The Databricks App: ShopNow Ops Hub (8 min)
+### 0:47 — The Databricks App: ShopNow Ops Hub (5 min)
 
 **What to show:** The live app in a browser, then the app code briefly.
 
@@ -307,7 +308,51 @@ If running this live (not from pre-deployed state), trigger the deploy_agent tas
 
 ---
 
-### 0:55 — Wrap-Up + Q&A (5 min)
+### 0:52 — Databricks One Chat: The Unified AI Interface (5 min)
+
+**What to show:** The Databricks One Chat panel (accessible from any workspace page via the chat icon).
+
+> **Prerequisite:** One Chat must be enabled in workspace settings (Admin Console > Previews > Databricks Unified Chat). Verify this before the demo.
+
+**What to say:**
+
+> "We have seen how different personas interact with data through purpose-built tools: Maya uses dashboards and Genie for analytics, Leo's agent answers operational questions through UC Functions, and the app combines both for the ops team.
+>
+> But what if someone asks a question that spans across multiple data assets — something that neither the Genie Space nor the agent was specifically designed to handle?
+>
+> For example, our agent's `get_top_products` function returns an all-time ranking. It cannot filter by a specific date range. So if I ask 'which was the most selling product last week?', the agent cannot answer that.
+>
+> This is where **Databricks One Chat** comes in. Let me show you."
+
+**Live demo:**
+
+1. Open the One Chat panel (chat icon in the top bar or sidebar)
+2. Type: **"Which was the most selling product last week?"**
+   - Show how One Chat understands the question, discovers the relevant tables in Unity Catalog (`silver_orders`, `silver_products`, or the gold tables), and generates the correct SQL with date filtering
+   - "Notice what just happened: One Chat didn't rely on a pre-built function or a pre-configured Genie Space. It looked at all the data assets available to me in Unity Catalog and figured out how to answer the question on its own."
+3. Type a follow-up: **"Break it down by country"**
+   - "It maintains context, just like a conversation — and it can join across tables to add the country dimension."
+4. Optionally, ask something that combines multiple domains: **"Compare last week's top product revenue to the cart abandonment rate for that product's category"**
+   - "This is a question that requires joining orders, products, and clickstream data. No single dashboard, Genie Space, or agent tool covers this. One Chat traverses Unity Catalog to find the right tables and build the query."
+
+**What to say (wrap the demo):**
+
+> "The key insight here is the **layered approach to AI-powered analytics** on Databricks:
+>
+> 1. **Dashboards** give you curated, pre-built visualizations for known KPIs
+> 2. **Genie Spaces** let business users ask natural language questions within a scoped set of tables
+> 3. **AI Agents** answer operational questions through governed, purpose-built tools
+> 4. **One Chat** is the safety net — it can answer anything by leveraging the full breadth of Unity Catalog
+>
+> Each layer is appropriate for a different use case, and they all share the same governed data, the same identity, and the same platform."
+
+**Differentiator:**
+
+> "One Chat is unique because it has access to the **entire Unity Catalog**. It understands table schemas, column descriptions, tags, and relationships — all the metadata you invest in governance. That metadata is not just for compliance — it makes AI smarter. The more you govern your data, the better One Chat becomes at answering questions."
+
+---
+
+### 0:57 — Wrap-Up + Q&A (3 min)
 
 **What to say:**
 
@@ -319,6 +364,7 @@ If running this live (not from pre-deployed state), trigger the deploy_agent tas
 > 4. **Created dashboards** and a **Genie Space** for self-service analytics — SQL and natural language, powered by the same gold tables
 > 5. **Synced KPIs to Lakebase** — managed Postgres built into the platform, no external database needed
 > 6. **Deployed a web application** — combining everything into a single operational tool
+> 7. Used **One Chat** to answer ad-hoc questions that span across all data assets — the unified AI interface for the entire Lakehouse
 >
 > All of this is defined in code as a Databricks Asset Bundle. You can deploy it in your own workspace in minutes.
 >
@@ -342,6 +388,7 @@ Use these throughout the demo. Each one addresses a common pain point:
 | "Business users can not self-serve analytics" | **Genie Spaces** — natural language over governed data | AI/BI section |
 | "Reverse ETL to our operational DB is complex" | **Lakebase** — managed Postgres with automatic table sync | Lakebase section |
 | "Deploying apps requires separate infrastructure" | **Databricks Apps** — managed hosting with native platform access | App section |
+| "Ad-hoc questions fall through the cracks" | **One Chat** — unified AI interface over all Unity Catalog assets | One Chat section |
 | "Our deployments are manual and error-prone" | **Asset Bundles** — infrastructure as code, one command to deploy | Throughout |
 
 ---
@@ -355,3 +402,5 @@ Use these throughout the demo. Each one addresses a common pain point:
 | App KPIs show "Database unavailable" | Lakebase instance may be stopped. Check **Databases** page and start it |
 | Dashboard shows no data | Pipeline may not have completed. Wait or use the pre-deployed target |
 | Genie Space not available | Show the notebook queries instead. Explain Genie requires workspace setup |
+| One Chat not available | Enable in Admin Console > Previews > Databricks Unified Chat. Needs workspace admin access |
+| One Chat gives wrong answer | Rephrase with explicit table hints: "using the silver_orders and silver_products tables, which product had the most revenue last week?" |
