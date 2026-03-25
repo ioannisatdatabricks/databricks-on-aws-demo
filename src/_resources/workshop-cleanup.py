@@ -72,6 +72,15 @@ for table_name in synced_tables:
         else:
             print(f"Error deleting synced table {table_name}: {e}")
 
+# Delete the auto-created Lakeflow pipelines for synced tables
+try:
+    for p in w.pipelines.list_pipelines():
+        if p.name and p.name.startswith("Synced table:") and f"{catalog}.{schema}." in p.name:
+            w.pipelines.delete(pipeline_id=p.pipeline_id)
+            print(f"Deleted synced table pipeline: {p.name}")
+except Exception as e:
+    print(f"Error deleting synced table pipelines: {e}")
+
 try:
     w.api_client.do("DELETE", f"/api/2.0/database/instances/{LAKEBASE_INSTANCE}")
     print(f"Deleted Lakebase instance: {LAKEBASE_INSTANCE}")
