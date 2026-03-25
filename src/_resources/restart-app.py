@@ -119,13 +119,36 @@ conn.close()
 
 # COMMAND ----------
 
+import io
 import time
 from databricks.sdk.service.apps import AppDeployment
+from databricks.sdk.service.workspace import ImportFormat, ExportFormat
 
 app = w.apps.get(APP_NAME)
-deploy_path = app.default_source_code_path or source_path
+
+# Determine the deploy target: use the app's default path, or create one.
+# Git Folder paths are NOT valid for app deployment — files must be in a
+# regular workspace directory.
+deploy_path = app.default_source_code_path
 if not deploy_path:
-    raise RuntimeError("Cannot determine source code path: app has no previous deployment and source_path parameter is not set.")
+    my_user = w.current_user.me().user_name
+    deploy_path = f"/Workspace/Users/{my_user}/apps/{APP_NAME}"
+
+if not source_path:
+    raise RuntimeError("source_path parameter is required (path to the 06-app directory).")
+
+# Copy app source files from source_path (may be a Git Folder) to deploy_path
+print(f"Copying app files from '{source_path}' to '{deploy_path}'...")
+for filename in ("app.py", "requirements.txt"):
+    try:
+        export_resp = w.workspace.export(path=f"{source_path}/{filename}", format=ExportFormat.AUTO)
+        import base64
+        content = base64.b64decode(export_resp.content)
+        w.workspace.upload(f"{deploy_path}/{filename}", io.BytesIO(content),
+                           format=ImportFormat.AUTO, overwrite=True)
+        print(f"  Copied {filename}")
+    except Exception as e:
+        print(f"  Warning: could not copy {filename}: {e}")
 
 # Write app.yaml — no PG credentials needed (app uses OAuth tokens via SDK)
 app_yaml = f"""\
@@ -146,9 +169,6 @@ env:
     value: "{lakebase_instance}"
 """
 
-# Write app.yaml into the source directory using workspace import API
-import io
-from databricks.sdk.service.workspace import ImportFormat
 w.workspace.upload(
     f"{deploy_path}/app.yaml",
     io.BytesIO(app_yaml.encode()),
