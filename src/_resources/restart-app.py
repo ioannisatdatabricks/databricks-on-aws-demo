@@ -137,8 +137,9 @@ if not deploy_path:
 if not source_path:
     raise RuntimeError("source_path parameter is required (path to the 06-app directory).")
 
-# Copy app source files from source_path (may be a Git Folder) to deploy_path
+# Ensure deploy directory exists, then copy app source files
 print(f"Copying app files from '{source_path}' to '{deploy_path}'...")
+w.workspace.mkdirs(deploy_path)
 for filename in ("app.py", "requirements.txt"):
     try:
         export_resp = w.workspace.export(path=f"{source_path}/{filename}", format=ExportFormat.AUTO)
