@@ -95,12 +95,11 @@ else:
     app_name = f"shopnow-hub-{suffix}"
 
 try:
-    w.apps.delete(name=app_name)
+    w.api_client.do("DELETE", f"/api/2.0/apps/{app_name}")
     print(f"Deleting app '{app_name}' (may take several minutes)...")
-    # Wait for deletion to complete
     for _ in range(30):
         try:
-            w.apps.get(name=app_name)
+            w.api_client.do("GET", f"/api/2.0/apps/{app_name}")
             time.sleep(10)
         except Exception:
             break

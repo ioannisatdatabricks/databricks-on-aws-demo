@@ -280,14 +280,23 @@ else:
     app_name = f"shopnow-hub-{suffix}"
 
 try:
-    app = w.apps.get(name=app_name)
+    app = w.api_client.do("GET", f"/api/2.0/apps/{app_name}")
     print(f"App '{app_name}' already exists.")
 except Exception:
     print(f"Creating app '{app_name}'...")
-    app = w.apps.create_and_wait(
-        name=app_name,
-        description="ShopNow Ops Hub — Live KPIs and AI Agent",
-    )
+    app = w.api_client.do("POST", "/api/2.0/apps", body={
+        "name": app_name,
+        "description": "ShopNow Ops Hub — Live KPIs and AI Agent",
+    })
+    # Wait for app to be ready
+    import time as _time
+    for _ in range(60):
+        status = w.api_client.do("GET", f"/api/2.0/apps/{app_name}")
+        state = status.get("status", {}).get("state", status.get("compute_status", {}).get("state", "UNKNOWN"))
+        if state in ("IDLE", "ACTIVE", "RUNNING"):
+            break
+        print(f"  Waiting for app (state={state})...")
+        _time.sleep(10)
     print(f"App '{app_name}' created.")
 
 # COMMAND ----------
