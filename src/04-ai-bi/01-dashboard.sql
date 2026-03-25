@@ -26,9 +26,9 @@
 
 -- COMMAND ----------
 
--- Widget declarations (used when running interactively outside the DAB job)
-CREATE WIDGET TEXT catalog DEFAULT 'main';
-CREATE WIDGET TEXT schema DEFAULT 'aws_webinar_demo';
+-- MAGIC %python
+-- MAGIC dbutils.widgets.text("catalog", "main", "Catalog")
+-- MAGIC dbutils.widgets.text("schema", "aws_webinar_demo", "Schema")
 
 -- COMMAND ----------
 
