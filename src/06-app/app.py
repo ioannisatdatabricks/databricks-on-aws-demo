@@ -202,15 +202,50 @@ MAIN_HTML = """<!DOCTYPE html>
   .chart-card h3 { font-size: 13px; color: #666; margin-bottom: 12px; font-weight: 600; }
   .chart-card canvas { width: 100% !important; max-height: 280px; }
 
-  /* Chat page */
-  .chat-container {
-    display: flex; flex-direction: column;
-    height: calc(100vh - 56px - 48px); /* header + padding */
-    max-width: 900px;
+  /* Assistant layout */
+  .assistant-layout {
+    display: flex; height: calc(100vh - 56px - 48px); gap: 16px;
   }
-  .chat-header { margin-bottom: 16px; }
-  .chat-header h2 { font-size: 18px; font-weight: 600; color: var(--db-dark); margin-bottom: 4px; }
-  .chat-header p { font-size: 13px; color: #888; }
+  .conv-panel {
+    width: 280px; min-width: 280px; background: white;
+    border-radius: 8px; border: 1px solid var(--db-border);
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .conv-panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px; border-bottom: 1px solid var(--db-border);
+  }
+  .conv-panel-header h3 { font-size: 14px; font-weight: 600; color: var(--db-dark); }
+  .conv-new-btn {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 12px; background: var(--db-red); color: white;
+    border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;
+  }
+  .conv-new-btn:hover { background: var(--db-red-hover); }
+  .conv-list { flex: 1; overflow-y: auto; padding: 8px; }
+  .conv-list-empty { padding: 24px 16px; text-align: center; color: #bbb; font-size: 13px; }
+  .conv-item {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 10px 12px; border-radius: 6px; cursor: pointer;
+    border: none; background: none; width: 100%; text-align: left;
+    transition: background 0.15s;
+  }
+  .conv-item:hover { background: var(--db-gray); }
+  .conv-item.active { background: #FFF0EE; }
+  .conv-item-content { flex: 1; min-width: 0; }
+  .conv-item-title {
+    font-size: 13px; font-weight: 500; color: var(--db-dark);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .conv-item-time { font-size: 11px; color: #aaa; margin-top: 2px; }
+  .conv-item-delete {
+    opacity: 0; border: none; background: none; cursor: pointer;
+    color: #bbb; padding: 2px; border-radius: 4px; flex-shrink: 0;
+  }
+  .conv-item:hover .conv-item-delete { opacity: 1; }
+  .conv-item-delete:hover { color: var(--db-red); background: rgba(255,54,33,0.08); }
+
+  .chat-area { flex: 1; display: flex; flex-direction: column; min-width: 0; }
   .chat-box {
     flex: 1; background: white; border-radius: 8px; border: 1px solid var(--db-border);
     display: flex; flex-direction: column; overflow: hidden;
@@ -245,15 +280,6 @@ MAIN_HTML = """<!DOCTYPE html>
     border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 500;
   }
   .chat-input-bar button:hover { background: var(--db-red-hover); }
-  .chat-actions {
-    display: flex; gap: 8px; padding: 0 16px 12px;
-  }
-  .chat-actions button {
-    padding: 6px 14px; background: white; color: #666;
-    border: 1px solid var(--db-border); border-radius: 6px;
-    cursor: pointer; font-size: 12px;
-  }
-  .chat-actions button:hover { background: var(--db-gray); }
 
   .spinner {
     display: inline-block; width: 16px; height: 16px;
@@ -342,25 +368,39 @@ MAIN_HTML = """<!DOCTYPE html>
 
     <!-- ==================== AI Assistant Page ==================== -->
     <div id="page-assistant" class="page">
-      <div class="chat-container">
-        <div class="chat-header">
-          <h2>ShopNow AI Assistant</h2>
-          <p>Ask questions about revenue, products, cart abandonment, or customer insights. Backed by live data from Unity Catalog.</p>
-        </div>
-        <div class="chat-box">
-          <div class="messages" id="messages">
-            <div class="msg agent">Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products, cart abandonment, or at-risk customers.</div>
+      <div class="assistant-layout">
+
+        <!-- Conversation list panel -->
+        <div class="conv-panel">
+          <div class="conv-panel-header">
+            <h3>Conversations</h3>
+            <button class="conv-new-btn" onclick="newSession()">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="16" height="16">
+                <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              New
+            </button>
           </div>
-          <div class="chat-input-bar">
-            <input id="user-input" type="text"
-                   placeholder="e.g. What was our revenue last week?"
-                   onkeydown="if(event.key==='Enter') sendMessage()"/>
-            <button onclick="sendMessage()">Send</button>
-          </div>
-          <div class="chat-actions">
-            <button onclick="newSession()">New conversation</button>
+          <div class="conv-list" id="conv-list">
+            <div class="conv-list-empty">No conversations yet</div>
           </div>
         </div>
+
+        <!-- Chat area -->
+        <div class="chat-area">
+          <div class="chat-box">
+            <div class="messages" id="messages">
+              <div class="msg agent">Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products, cart abandonment, or at-risk customers.</div>
+            </div>
+            <div class="chat-input-bar">
+              <input id="user-input" type="text"
+                     placeholder="e.g. What was our revenue last week?"
+                     onkeydown="if(event.key==='Enter') sendMessage()"/>
+              <button onclick="sendMessage()">Send</button>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
 
@@ -467,7 +507,7 @@ async function loadCharts() {
 window.addEventListener('DOMContentLoaded', () => loadCharts());
 
 // ---------------------------------------------------------------------------
-// Agent Chat
+// Agent Chat — with persistent conversation list
 // ---------------------------------------------------------------------------
 let sessionId = sessionStorage.getItem('shopnow_session');
 if (!sessionId) {
@@ -475,19 +515,81 @@ if (!sessionId) {
   sessionStorage.setItem('shopnow_session', sessionId);
 }
 
-// Restore chat history on load
+const WELCOME_MSG = "Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products, cart abandonment, or at-risk customers.";
+
+// Load conversation list and current session on page load
 window.addEventListener('DOMContentLoaded', async () => {
+  await loadConversationList();
+  await loadSession(sessionId);
+});
+
+async function loadConversationList() {
   try {
-    const res = await fetch(`/api/session/${sessionId}`);
+    const res = await fetch('/api/sessions');
     const data = await res.json();
-    const messagesEl = document.getElementById('messages');
+    const listEl = document.getElementById('conv-list');
+    if (!data.sessions || data.sessions.length === 0) {
+      listEl.innerHTML = '<div class="conv-list-empty">No conversations yet</div>';
+      return;
+    }
+    listEl.innerHTML = '';
+    for (const s of data.sessions) {
+      const active = s.id === sessionId ? ' active' : '';
+      const time = s.updated_at ? new Date(s.updated_at).toLocaleDateString('en-US', {month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      listEl.innerHTML += `
+        <button class="conv-item${active}" data-sid="${s.id}" onclick="switchSession('${s.id}')">
+          <div class="conv-item-content">
+            <div class="conv-item-title">${escapeHtml(s.title)}</div>
+            <div class="conv-item-time">${time}</div>
+          </div>
+          <span class="conv-item-delete" onclick="event.stopPropagation(); deleteSession('${s.id}')" title="Delete">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+            </svg>
+          </span>
+        </button>`;
+    }
+  } catch (e) { console.error('Failed to load sessions:', e); }
+}
+
+async function loadSession(sid) {
+  sessionId = sid;
+  sessionStorage.setItem('shopnow_session', sid);
+  const messagesEl = document.getElementById('messages');
+  messagesEl.innerHTML = `<div class="msg agent">${WELCOME_MSG}</div>`;
+  // Highlight in list
+  document.querySelectorAll('.conv-item').forEach(el => {
+    el.classList.toggle('active', el.dataset.sid === sid);
+  });
+  try {
+    const res = await fetch(`/api/session/${sid}`);
+    const data = await res.json();
     for (const msg of (data.messages || [])) {
       const cls = msg.role === 'user' ? 'user' : 'agent';
       messagesEl.innerHTML += `<div class="msg ${cls}">${escapeHtml(msg.content)}</div>`;
     }
     messagesEl.scrollTop = messagesEl.scrollHeight;
-  } catch (e) { /* first visit */ }
-});
+  } catch (e) { /* new session */ }
+}
+
+function switchSession(sid) { loadSession(sid); }
+
+async function newSession() {
+  sessionId = crypto.randomUUID();
+  sessionStorage.setItem('shopnow_session', sessionId);
+  document.getElementById('messages').innerHTML =
+    `<div class="msg agent">${WELCOME_MSG}</div>`;
+  // Deselect all in list
+  document.querySelectorAll('.conv-item').forEach(el => el.classList.remove('active'));
+}
+
+async function deleteSession(sid) {
+  try {
+    await fetch(`/api/session/${sid}`, { method: 'DELETE' });
+    if (sid === sessionId) { await newSession(); }
+    await loadConversationList();
+  } catch (e) { console.error('Delete failed:', e); }
+}
 
 async function sendMessage() {
   const input = document.getElementById('user-input');
@@ -514,17 +616,12 @@ async function sendMessage() {
     clearTimeout(timeoutId);
     const data = await res.json();
     document.getElementById(spinnerId).textContent = data.answer;
+    // Refresh conversation list (new session may have appeared)
+    await loadConversationList();
   } catch (e) {
     document.getElementById(spinnerId).textContent = 'Error contacting agent. Please retry.';
   }
   messages.scrollTop = messages.scrollHeight;
-}
-
-function newSession() {
-  sessionId = crypto.randomUUID();
-  sessionStorage.setItem('shopnow_session', sessionId);
-  document.getElementById('messages').innerHTML =
-    `<div class="msg agent">Hi! I'm the ShopNow Operations Assistant. Ask me about revenue, top products, cart abandonment, or at-risk customers.</div>`;
 }
 
 function escapeHtml(s) {
@@ -696,9 +793,46 @@ def _get_session_messages(session_id: str) -> list[dict]:
 
 
 def _save_session_messages(session_id: str, messages: list[dict]):
-    """Persist conversation history for a session to DatabricksStore."""
+    """Persist conversation history and session metadata to DatabricksStore."""
+    from datetime import datetime, timezone
     namespace = ("shopnow", "sessions", session_id)
     _store.put(namespace, "messages", {"messages": messages})
+
+    # Update session index (title from first user message, timestamp)
+    first_user_msg = next((m["content"] for m in messages if m["role"] == "user"), "New conversation")
+    title = first_user_msg[:80] + ("..." if len(first_user_msg) > 80 else "")
+    now = datetime.now(timezone.utc).isoformat()
+    index_ns = ("shopnow", "session_index")
+    existing = _store.get(index_ns, session_id)
+    created = existing.value.get("created_at", now) if existing and existing.value else now
+    _store.put(index_ns, session_id, {
+        "title": title,
+        "created_at": created,
+        "updated_at": now,
+    })
+
+
+def _list_sessions() -> list[dict]:
+    """List all sessions from the session index, newest first."""
+    index_ns = ("shopnow", "session_index")
+    items = _store.search(index_ns)
+    sessions = []
+    for item in items:
+        if item.value:
+            sessions.append({
+                "id": item.key,
+                "title": item.value.get("title", "Untitled"),
+                "created_at": item.value.get("created_at"),
+                "updated_at": item.value.get("updated_at"),
+            })
+    sessions.sort(key=lambda s: s.get("updated_at") or "", reverse=True)
+    return sessions
+
+
+def _delete_session(session_id: str):
+    """Delete a session's messages and index entry."""
+    _store.delete(("shopnow", "sessions", session_id), "messages")
+    _store.delete(("shopnow", "session_index"), session_id)
 
 
 def _query_agent(messages: list[dict]) -> str:
@@ -739,6 +873,17 @@ def _query_agent(messages: list[dict]) -> str:
     return "I couldn't process that request. Please try rephrasing your question."
 
 
+@app.get("/api/sessions")
+async def list_sessions():
+    """List all conversation sessions."""
+    try:
+        sessions = await asyncio.to_thread(_list_sessions)
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}")
+        sessions = []
+    return JSONResponse({"sessions": sessions})
+
+
 @app.get("/api/session/{session_id}")
 async def get_session(session_id: str):
     """Retrieve stored conversation history for a session."""
@@ -748,6 +893,16 @@ async def get_session(session_id: str):
         logger.error(f"Failed to load session {session_id}: {e}")
         messages = []
     return JSONResponse({"session_id": session_id, "messages": messages})
+
+
+@app.delete("/api/session/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a conversation session."""
+    try:
+        await asyncio.to_thread(_delete_session, session_id)
+    except Exception as e:
+        logger.error(f"Failed to delete session {session_id}: {e}")
+    return JSONResponse({"deleted": session_id})
 
 
 @app.post("/api/agent")
