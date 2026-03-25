@@ -239,27 +239,25 @@ try:
 except Exception:
     pass  # First deploy — no dashboards yet
 
+body = {
+    "display_name": dashboard_display_name,
+    "serialized_dashboard": qualified,
+    "warehouse_id": warehouse_id,
+}
+
 if existing_dash_id:
     dashboard_id = existing_dash_id
-    w.lakeview.update(
-        dashboard_id=dashboard_id,
-        display_name=dashboard_display_name,
-        serialized_dashboard=qualified,
-        warehouse_id=warehouse_id,
-    )
+    w.api_client.do("PATCH", f"/api/2.0/lakeview/dashboards/{dashboard_id}", body=body)
     print(f"Updated existing dashboard '{dashboard_display_name}' (id={dashboard_id})")
 else:
-    dash = w.lakeview.create(
-        display_name=dashboard_display_name,
-        serialized_dashboard=qualified,
-        warehouse_id=warehouse_id,
-    )
-    dashboard_id = dash.dashboard_id
+    resp = w.api_client.do("POST", "/api/2.0/lakeview/dashboards", body=body)
+    dashboard_id = resp["dashboard_id"]
     print(f"Created dashboard '{dashboard_display_name}' (id={dashboard_id})")
 
 # Publish the dashboard so it is viewable
 try:
-    w.lakeview.publish(dashboard_id=dashboard_id, warehouse_id=warehouse_id)
+    w.api_client.do("POST", f"/api/2.0/lakeview/dashboards/{dashboard_id}/published",
+                    body={"warehouse_id": warehouse_id})
     print("Dashboard published.")
 except Exception as e:
     print(f"Dashboard publish note: {e}")

@@ -123,7 +123,7 @@ try:
     found = False
     for d in resp.get("dashboards", []):
         if d.get("display_name") == dashboard_display_name:
-            w.lakeview.trash(dashboard_id=d["dashboard_id"])
+            w.api_client.do("DELETE", f"/api/2.0/lakeview/dashboards/{d['dashboard_id']}")
             print(f"Trashed dashboard: {d['display_name']} (id={d['dashboard_id']})")
             found = True
             break
