@@ -21,5 +21,3 @@ resources:
         volume:   ${var.volume}
 
       continuous: false   # triggered mode; set true for streaming in prod
-
-      development: true
