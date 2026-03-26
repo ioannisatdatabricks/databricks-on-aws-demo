@@ -3,7 +3,7 @@
 # MAGIC # Workshop Setup — Workspace-Only Deployment
 # MAGIC
 # MAGIC This notebook creates all the resources needed for the ShopNow demo **without** the
-# MAGIC Databricks CLI or Asset Bundles. Run it once from within a Databricks workspace after
+# MAGIC Databricks CLI or Declarative Automation Bundles. Run it once from within a Databricks workspace after
 # MAGIC cloning the repository as a **Git Folder**.
 # MAGIC
 # MAGIC **What it does:**

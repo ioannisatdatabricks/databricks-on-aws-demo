@@ -106,7 +106,7 @@ Open these tabs in advance (you will switch between them during the demo):
 >
 > We will go from raw data files sitting in S3 all the way to a production AI-powered application, passing through data ingestion, governance, BI, and AI along the way.
 >
-> Everything you see today is packaged as a Databricks Asset Bundle — infrastructure as code that you can deploy in your own workspace with a single command.
+> Everything you see today is packaged as a Declarative Automation Bundle — infrastructure as code that you can deploy in your own workspace with a single command.
 >
 > Let me kick off the orchestration job right now so the data starts flowing while we walk through the code."
 
@@ -366,7 +366,7 @@ If running this live (not from pre-deployed state), trigger the deploy_agent tas
 > 6. **Deployed a web application** — combining everything into a single operational tool
 > 7. Used **One Chat** to answer ad-hoc questions that span across all data assets — the unified AI interface for the entire Lakehouse
 >
-> All of this is defined in code as a Databricks Asset Bundle. You can deploy it in your own workspace in minutes.
+> All of this is defined in code as a Declarative Automation Bundle. You can deploy it in your own workspace in minutes.
 >
 > The key takeaway: **Databricks is the unified platform for data, analytics, and AI.** You don't need separate tools for ingestion, governance, BI, ML, operational databases, or application hosting. It all works together, on AWS, from a single control plane."
 
@@ -389,7 +389,7 @@ Use these throughout the demo. Each one addresses a common pain point:
 | "Reverse ETL to our operational DB is complex" | **Lakebase** — managed Postgres with automatic table sync | Lakebase section |
 | "Deploying apps requires separate infrastructure" | **Databricks Apps** — managed hosting with native platform access | App section |
 | "Ad-hoc questions fall through the cracks" | **One Chat** — unified AI interface over all Unity Catalog assets | One Chat section |
-| "Our deployments are manual and error-prone" | **Asset Bundles** — infrastructure as code, one command to deploy | Throughout |
+| "Our deployments are manual and error-prone" | **Declarative Automation Bundles** — infrastructure as code, one command to deploy | Throughout |
 
 ---
 

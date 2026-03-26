@@ -1,7 +1,7 @@
 [project]
 name = "dbs-on-aws-webinar-demo"
 version = "0.1.0"
-description = "Databricks Asset Bundle for AWS Webinar demo"
+description = "Declarative Automation Bundle for AWS Webinar demo"
 requires-python = ">=3.10"
 
 dependencies = [

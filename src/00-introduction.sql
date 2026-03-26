@@ -30,7 +30,7 @@
 -- MAGIC | **Lakebase** | Managed PostgreSQL with automatic table sync | RDS + Fivetran / Airbyte |
 -- MAGIC | **Databricks Apps** | Host web applications on the platform | EC2 / ECS / Lambda + API Gateway |
 -- MAGIC | **One Chat** | Ask any question across all your data assets in natural language | Manual SQL exploration across schemas |
--- MAGIC | **Asset Bundles** | Infrastructure-as-code for all of the above | Terraform + CI/CD pipelines |
+-- MAGIC | **Declarative Automation Bundles** | Infrastructure-as-code for all of the above | Terraform + CI/CD pipelines |
 -- MAGIC
 -- MAGIC All of these share the same **security model**, **identity system**, and **metadata catalog**. Data never leaves the platform boundary.
 
@@ -102,7 +102,7 @@
 -- MAGIC | **UC Function** | A SQL or Python function registered in Unity Catalog. Can be used as a tool by AI agents. |
 -- MAGIC | **Foundation Model API** | Large language models (like Llama, Claude) hosted directly on Databricks. No external API keys needed. |
 -- MAGIC | **Serverless** | Compute that Databricks manages for you. No clusters to configure, no scaling to tune, no idle costs (for scale-to-zero resources). |
--- MAGIC | **Asset Bundle** | A project definition (YAML + code) that describes all your Databricks resources. Deploy everything with `databricks bundle deploy`. |
+-- MAGIC | **Declarative Automation Bundle (DAB)** | A project definition (YAML + code) that describes all your Databricks resources. Deploy everything with `databricks bundle deploy`. |
 
 -- COMMAND ----------
 
@@ -151,7 +151,7 @@
 -- MAGIC - Lakebase Provisioned enabled
 -- MAGIC - Databricks Apps enabled
 -- MAGIC
--- MAGIC **Option A — Asset Bundles (CLI):** Deploy the bundle and run the orchestration job (see above)
+-- MAGIC **Option A — Declarative Automation Bundles (CLI):** Deploy the bundle and run the orchestration job (see above)
 -- MAGIC
 -- MAGIC **Option B — Workspace-Only (No CLI):** Clone this repo as a **Git Folder** in your workspace,
 -- MAGIC then run [`src/_resources/workshop-setup`]($./_ resources/workshop-setup) to create all resources

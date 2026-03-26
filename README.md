@@ -14,14 +14,14 @@ You will follow **ShopNow**, a fictional e-commerce retailer, as it builds a com
 | **AI/BI Dashboards & Genie** | Create dashboards and a natural-language analytics interface so business users can ask questions without writing SQL |
 | **Lakebase** | Sync gold-layer tables to a managed PostgreSQL instance for operational applications — no external database or reverse ETL tool needed |
 | **Databricks Apps** | Deploy a FastAPI web application that combines live KPIs from Lakebase with the AI agent — hosted and managed by Databricks |
-| **Asset Bundles** | See how everything above is packaged as code and deployed with a single CLI command |
+| **Declarative Automation Bundles** | See how everything above is packaged as code and deployed with a single CLI command |
 
 ## Prerequisites
 
 - A Databricks workspace on AWS with **Unity Catalog**, **Serverless Compute**, **Lakebase**, and **Databricks Apps** enabled
 - [Databricks CLI](https://docs.databricks.com/dev-tools/cli/install.html) v0.200+ installed on your laptop
 
-## Option A: Quick Start with Asset Bundles (CLI)
+## Option A: Quick Start with Declarative Automation Bundles (CLI)
 
 ```bash
 # 1. Clone this repository
@@ -117,7 +117,7 @@ src/
 
 ## Clean Up
 
-### If you used Option A (Asset Bundles)
+### If you used Option A (Declarative Automation Bundles)
 
 ```bash
 # Delete the AI agent endpoint (not managed by the bundle)
