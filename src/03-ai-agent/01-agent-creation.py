@@ -45,103 +45,107 @@ except ImportError:
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Tool 1: Get revenue summary for a given date range
-# MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_revenue_summary(
-# MAGIC   start_date DATE COMMENT 'Start date (inclusive), e.g. 2024-01-01',
-# MAGIC   end_date   DATE COMMENT 'End date (inclusive), e.g. 2024-01-31'
-# MAGIC )
-# MAGIC RETURNS TABLE (
-# MAGIC   order_day       DATE,
-# MAGIC   ship_country    STRING,
-# MAGIC   order_count     BIGINT,
-# MAGIC   total_revenue   DOUBLE,
-# MAGIC   avg_order_value DOUBLE
-# MAGIC )
-# MAGIC COMMENT 'Returns daily revenue broken down by country for the given date range'
-# MAGIC RETURN
-# MAGIC   SELECT order_day, ship_country, order_count, total_revenue, avg_order_value
-# MAGIC   FROM   ${catalog}.${schema}.gold_revenue_daily
-# MAGIC   WHERE  order_day BETWEEN start_date AND end_date
-# MAGIC   ORDER  BY order_day, total_revenue DESC
+spark.sql(f"""
+-- Tool 1: Get revenue summary for a given date range
+CREATE OR REPLACE FUNCTION {catalog}.{schema}.get_revenue_summary(
+  start_date DATE COMMENT 'Start date (inclusive), e.g. 2024-01-01',
+  end_date   DATE COMMENT 'End date (inclusive), e.g. 2024-01-31'
+)
+RETURNS TABLE (
+  order_day       DATE,
+  ship_country    STRING,
+  order_count     BIGINT,
+  total_revenue   DOUBLE,
+  avg_order_value DOUBLE
+)
+COMMENT 'Returns daily revenue broken down by country for the given date range'
+RETURN
+  SELECT order_day, ship_country, order_count, total_revenue, avg_order_value
+  FROM   {catalog}.{schema}.gold_revenue_daily
+  WHERE  order_day BETWEEN start_date AND end_date
+  ORDER  BY order_day, total_revenue DESC
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Tool 2: Get top N products by revenue
-# MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_top_products(
-# MAGIC   n          INT    COMMENT 'Number of top products to return. Always provide a value, e.g. 10',
-# MAGIC   cat_filter STRING COMMENT 'Category name to filter by, e.g. Electronics, Books, Clothing, Sports, Home & Garden. Use empty string to get all categories.'
-# MAGIC )
-# MAGIC RETURNS TABLE (
-# MAGIC   product_name    STRING,
-# MAGIC   category        STRING,
-# MAGIC   brand           STRING,
-# MAGIC   units_sold      BIGINT,
-# MAGIC   total_revenue   DOUBLE,
-# MAGIC   margin_pct      DOUBLE,
-# MAGIC   return_rate_pct DOUBLE
-# MAGIC )
-# MAGIC COMMENT 'Returns top N products ranked by total revenue. Set cat_filter to a category name or empty string for all.'
-# MAGIC RETURN
-# MAGIC   SELECT product_name, category, brand, units_sold, total_revenue, margin_pct, return_rate_pct
-# MAGIC   FROM (
-# MAGIC     SELECT *, ROW_NUMBER() OVER (ORDER BY total_revenue DESC) AS rn
-# MAGIC     FROM   ${catalog}.${schema}.gold_top_products
-# MAGIC     WHERE  category = COALESCE(NULLIF(cat_filter, ''), category)
-# MAGIC   )
-# MAGIC   WHERE rn <= n
+spark.sql(f"""
+-- Tool 2: Get top N products by revenue
+CREATE OR REPLACE FUNCTION {catalog}.{schema}.get_top_products(
+  n          INT    COMMENT 'Number of top products to return. Always provide a value, e.g. 10',
+  cat_filter STRING COMMENT 'Category name to filter by, e.g. Electronics, Books, Clothing, Sports, Home & Garden. Use empty string to get all categories.'
+)
+RETURNS TABLE (
+  product_name    STRING,
+  category        STRING,
+  brand           STRING,
+  units_sold      BIGINT,
+  total_revenue   DOUBLE,
+  margin_pct      DOUBLE,
+  return_rate_pct DOUBLE
+)
+COMMENT 'Returns top N products ranked by total revenue. Set cat_filter to a category name or empty string for all.'
+RETURN
+  SELECT product_name, category, brand, units_sold, total_revenue, margin_pct, return_rate_pct
+  FROM (
+    SELECT *, ROW_NUMBER() OVER (ORDER BY total_revenue DESC) AS rn
+    FROM   {catalog}.{schema}.gold_top_products
+    WHERE  category = COALESCE(NULLIF(cat_filter, ''), category)
+  )
+  WHERE rn <= n
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Tool 3: Get cart abandonment rate
-# MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_abandonment_rate(
-# MAGIC   days_back INT COMMENT 'Number of days to look back. Always provide a value, e.g. 7 for last week, 30 for last month. Use 30 if unclear.'
-# MAGIC )
-# MAGIC RETURNS TABLE (
-# MAGIC   day                  DATE,
-# MAGIC   total_sessions       BIGINT,
-# MAGIC   abandoned_sessions   BIGINT,
-# MAGIC   abandonment_rate_pct DOUBLE
-# MAGIC )
-# MAGIC COMMENT 'Returns daily cart abandonment rate for the last N days'
-# MAGIC RETURN
-# MAGIC   SELECT
-# MAGIC     DATE(session_start)                                                AS day,
-# MAGIC     COUNT(*)                                                           AS total_sessions,
-# MAGIC     SUM(CASE WHEN abandoned THEN 1 ELSE 0 END)                        AS abandoned_sessions,
-# MAGIC     ROUND(SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) /
-# MAGIC           NULLIF(COUNT(*), 0) * 100, 1)                               AS abandonment_rate_pct
-# MAGIC   FROM ${catalog}.${schema}.gold_cart_abandonment
-# MAGIC   WHERE session_start >= DATEADD(day, -days_back, current_date())
-# MAGIC   GROUP BY DATE(session_start)
-# MAGIC   ORDER BY day
+spark.sql(f"""
+-- Tool 3: Get cart abandonment rate
+CREATE OR REPLACE FUNCTION {catalog}.{schema}.get_abandonment_rate(
+  days_back INT COMMENT 'Number of days to look back. Always provide a value, e.g. 7 for last week, 30 for last month. Use 30 if unclear.'
+)
+RETURNS TABLE (
+  day                  DATE,
+  total_sessions       BIGINT,
+  abandoned_sessions   BIGINT,
+  abandonment_rate_pct DOUBLE
+)
+COMMENT 'Returns daily cart abandonment rate for the last N days'
+RETURN
+  SELECT
+    DATE(session_start)                                                AS day,
+    COUNT(*)                                                           AS total_sessions,
+    SUM(CASE WHEN abandoned THEN 1 ELSE 0 END)                        AS abandoned_sessions,
+    ROUND(SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) /
+          NULLIF(COUNT(*), 0) * 100, 1)                               AS abandonment_rate_pct
+  FROM {catalog}.{schema}.gold_cart_abandonment
+  WHERE session_start >= DATEADD(day, -days_back, current_date())
+  GROUP BY DATE(session_start)
+  ORDER BY day
+""")
 
 # COMMAND ----------
 
-# MAGIC %sql
-# MAGIC -- Tool 4: Get high-value customers at risk (no order in N days)
-# MAGIC CREATE OR REPLACE FUNCTION ${catalog}.${schema}.get_at_risk_customers(
-# MAGIC   min_ltv       DOUBLE COMMENT 'Minimum lifetime value threshold. Always provide a value, e.g. 500.0. Use 100.0 if unclear.',
-# MAGIC   inactive_days INT    COMMENT 'Minimum days since last order. Always provide a value, e.g. 60. Use 30 if unclear.'
-# MAGIC )
-# MAGIC RETURNS TABLE (
-# MAGIC   customer_id          STRING,
-# MAGIC   segment              STRING,
-# MAGIC   country              STRING,
-# MAGIC   lifetime_value       DOUBLE,
-# MAGIC   days_since_last_order INT
-# MAGIC )
-# MAGIC COMMENT 'Returns high-value customers who have not ordered recently — at-risk cohort for retention'
-# MAGIC RETURN
-# MAGIC   SELECT customer_id, segment, country, lifetime_value, days_since_last_order
-# MAGIC   FROM   ${catalog}.${schema}.gold_customer_ltv
-# MAGIC   WHERE  lifetime_value >= min_ltv
-# MAGIC     AND  days_since_last_order >= inactive_days
-# MAGIC     AND  is_active = TRUE
-# MAGIC   ORDER  BY lifetime_value DESC
-# MAGIC   LIMIT  100
+spark.sql(f"""
+-- Tool 4: Get high-value customers at risk (no order in N days)
+CREATE OR REPLACE FUNCTION {catalog}.{schema}.get_at_risk_customers(
+  min_ltv       DOUBLE COMMENT 'Minimum lifetime value threshold. Always provide a value, e.g. 500.0. Use 100.0 if unclear.',
+  inactive_days INT    COMMENT 'Minimum days since last order. Always provide a value, e.g. 60. Use 30 if unclear.'
+)
+RETURNS TABLE (
+  customer_id          STRING,
+  segment              STRING,
+  country              STRING,
+  lifetime_value       DOUBLE,
+  days_since_last_order INT
+)
+COMMENT 'Returns high-value customers who have not ordered recently — at-risk cohort for retention'
+RETURN
+  SELECT customer_id, segment, country, lifetime_value, days_since_last_order
+  FROM   {catalog}.{schema}.gold_customer_ltv
+  WHERE  lifetime_value >= min_ltv
+    AND  days_since_last_order >= inactive_days
+    AND  is_active = TRUE
+  ORDER  BY lifetime_value DESC
+  LIMIT  100
+""")
 
 # COMMAND ----------
 
