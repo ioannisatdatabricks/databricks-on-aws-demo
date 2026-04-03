@@ -27,7 +27,7 @@ Wait for all 6 tasks to complete successfully (~25-30 minutes). This ensures:
 | Component | How to verify |
 |-----------|--------------|
 | Pipeline | Open the pipeline in the workspace. All tables should show as "Completed" |
-| Gold tables | Run `SELECT COUNT(*) FROM main.aws_webinar_demo.gold_revenue_daily` in SQL Editor |
+| Gold tables | Run `SELECT COUNT(*) FROM workspace.aws_webinar_demo.gold_revenue_daily` in SQL Editor |
 | Agent endpoint | Go to **Serving** > `shopnow-ops-agent` — should show "Ready" |
 | Dashboard | Open **Dashboards** > "ShopNow Revenue Intelligence" — all charts should render |
 | Lakebase | Go to **Databases** > `shopnow-lakebase` — state should be "Available" |
@@ -42,7 +42,7 @@ Before going live, destroy and redeploy so participants see a fresh run:
 databricks serving-endpoints delete shopnow-ops-agent
 databricks bundle destroy --auto-approve
 # In SQL Editor:
-# DROP SCHEMA IF EXISTS main.aws_webinar_demo CASCADE
+# DROP SCHEMA IF EXISTS workspace.aws_webinar_demo CASCADE
 
 # Redeploy
 databricks bundle deploy
@@ -56,9 +56,11 @@ If participants will deploy the demo themselves (no pre-deployment by instructor
 
 1. Share the GitHub repo URL with participants
 2. Each participant clones it as a **Git Folder** in their workspace
-3. Each participant runs `src/_resources/workshop-setup` with a **unique schema name**
-   (e.g., `aws_webinar_demo_<first_name>`) to avoid resource conflicts
-4. Walk through notebooks in presentation order — participants follow along in their own workspace
+3. Each participant opens `src/_resources/config` and sets:
+   - **CATALOG** to their workspace catalog (default: `workspace`)
+   - **SCHEMA** to a **unique name** (e.g., `aws_webinar_demo_<first_name>`) to avoid resource conflicts
+4. Each participant runs `src/_resources/workshop-setup` — it picks up the config automatically
+5. Walk through notebooks in presentation order — participants follow along in their own workspace
 
 **Timing impact:** The workshop-setup notebook takes ~10 minutes (data generation + pipeline run).
 Add 10 minutes to the overall timing or have participants start setup during introductions.
@@ -196,7 +198,7 @@ Open these tabs in advance (you will switch between them during the demo):
 
 **Walk through:**
 1. **UC Functions as tools (Steps 1):** "These are regular SQL functions registered in Unity Catalog. The agent can call them like any developer would call an API. The function `get_revenue_summary` takes a date range and queries the gold table. Because it is a UC Function, it is governed, discoverable, and reusable."
-2. **LangGraph agent (Step 2):** "We use the Foundation Model API — Llama 3.3 70B hosted on Databricks. No API keys to manage, no external model provider, no data leaving your environment. The agent framework is LangGraph, and MLflow traces every call automatically."
+2. **LangGraph agent (Step 2):** "We use the Foundation Model API — Llama 4 Maverick hosted on Databricks. No API keys to manage, no external model provider, no data leaving your environment. The agent framework is LangGraph, and MLflow traces every call automatically."
 3. **Test the agent (Step 3):** Show the 4 test questions — "Look at how the agent chooses the right tool for each question, calls the UC Function, and formats the answer with business insight."
 4. **Deploy (Steps 4-5):** "The agent is logged to MLflow, registered in Unity Catalog, and deployed to a Model Serving endpoint. This endpoint is serverless, auto-scales, and can scale to zero when idle."
 
@@ -384,7 +386,7 @@ Use these throughout the demo. Each one addresses a common pain point:
 | "Data quality is an afterthought" | **Expectations (constraints)** — first-class data quality in the pipeline definition | Pipeline section |
 | "Governance is a separate tool and workflow" | **Unity Catalog** — tags, masking, RLS, lineage, all built in | Governance section |
 | "Our AI models hallucinate because they lack real data" | **UC Functions as agent tools** — agent is grounded in governed, live data | Agent section |
-| "We need external model providers and API keys" | **Foundation Model API** — hosted LLMs, no data leaves the environment | Agent section |
+| "We need external model providers and API keys" | **Foundation Model API** — hosted LLMs (Llama 4 Maverick), no data leaves the environment | Agent section |
 | "Business users can not self-serve analytics" | **Genie Spaces** — natural language over governed data | AI/BI section |
 | "Reverse ETL to our operational DB is complex" | **Lakebase** — managed Postgres with automatic table sync | Lakebase section |
 | "Deploying apps requires separate infrastructure" | **Databricks Apps** — managed hosting with native platform access | App section |
