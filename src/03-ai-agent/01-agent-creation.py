@@ -162,7 +162,7 @@ mlflow.langchain.autolog()
 
 # LLM: use Databricks-hosted Meta Llama (Foundation Model API)
 llm = ChatDatabricks(
-    endpoint="databricks-claude-sonnet-4",
+    endpoint="databricks-llama-4-maverick",
     temperature=0.1,
     max_tokens=2048,
 )
@@ -288,7 +288,7 @@ CATALOG = "{catalog}"
 SCHEMA  = "{schema}"
 
 llm = ChatDatabricks(
-    endpoint="databricks-claude-sonnet-4",
+    endpoint="databricks-llama-4-maverick",
     temperature=0.1,
     max_tokens=2048,
 )
