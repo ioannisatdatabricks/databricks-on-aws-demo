@@ -59,16 +59,22 @@ If you prefer to work entirely within the Databricks workspace — no local CLI 
 3. Enter the repository URL: `<REPO_URL>`
 4. Click **Create Git Folder**
 
-### 2. Run the workshop setup notebook
+### 2. Configure your environment
+
+1. Open `src/_resources/config`
+2. Edit the three constants at the top to match your environment:
+   - **CATALOG**: `workspace` (the default for new Databricks accounts)
+   - **SCHEMA**: `aws_webinar_demo` (use a unique name if sharing a workspace with others)
+   - **VOLUME**: `raw_data`
+
+All demo notebooks load this config automatically — no need to set widgets in each one.
+
+### 3. Run the workshop setup notebook
 
 1. Open `src/_resources/workshop-setup`
-2. Set the widgets at the top of the notebook:
-   - **Catalog**: `main` (or your catalog)
-   - **Schema**: `aws_webinar_demo` (use a unique name if sharing a workspace with others)
-   - **Volume**: `raw_data`
-3. Click **Run All** — this generates data, creates a SQL warehouse, starts the Lakeflow pipeline, deploys the dashboard, and creates the app shell (~10 min)
+2. Click **Run All** — this generates data, creates a SQL warehouse, starts the Lakeflow pipeline, deploys the dashboard, and creates the app shell (~10 min)
 
-### 3. Walk through the notebooks in order
+### 4. Walk through the notebooks in order
 
 After the pipeline completes, follow the notebooks:
 
@@ -77,7 +83,7 @@ After the pipeline completes, follow the notebooks:
 | 0 | `src/00-introduction` | Read — architecture overview |
 | 1 | `src/01-pipeline/01-declarative-pipeline` | **Read only** — executed by the pipeline engine |
 | 1 | `src/01-pipeline/02-pipeline-cdc` | **Read only** — executed by the pipeline engine |
-| 2 | `src/02-governance/01-unity-catalog` | **Run interactively** (set widgets: catalog, schema) |
+| 2 | `src/02-governance/01-unity-catalog` | **Run interactively** |
 | 3 | `src/03-ai-agent/01-agent-creation` | **Run interactively** (~20 min for endpoint deploy) |
 | 4 | `src/04-ai-bi/01-dashboard` | Read — open the dashboard in the UI instead |
 | 4 | `src/04-ai-bi/02-genie-space` | Read — illustrative queries |
@@ -86,7 +92,7 @@ After the pipeline completes, follow the notebooks:
 
 > **Tip:** The pipeline notebooks (`01-pipeline/`) are executed by the Lakeflow engine, not run cell-by-cell. Open them to read the code, but do not try to run them interactively.
 
-### 4. Clean up
+### 5. Clean up
 
 Open and run `src/_resources/workshop-cleanup` to remove all created resources.
 
@@ -130,7 +136,7 @@ databricks serving-endpoints delete shopnow-ops-agent
 databricks bundle destroy --auto-approve
 
 # Drop the schema
-# In the SQL Editor: DROP SCHEMA IF EXISTS main.aws_webinar_demo_dev CASCADE
+# In the SQL Editor: DROP SCHEMA IF EXISTS workspace.aws_webinar_demo_dev CASCADE
 ```
 
 ### If you used Option B (Workspace-Only)
