@@ -177,7 +177,7 @@ except Exception:
 
 # COMMAND ----------
 
-dashboard_display_name = f"ShopNow Revenue Intelligence — {schema}"
+dashboard_display_name = f"ShopNow Revenue Intelligence - {schema}"
 
 try:
     # Use REST API to find dashboard (w.lakeview.list() may not exist on all SDK versions)

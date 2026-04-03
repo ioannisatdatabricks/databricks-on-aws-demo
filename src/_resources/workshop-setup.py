@@ -145,7 +145,7 @@ dashboard_raw = base64.b64decode(export_resp.content).decode("utf-8")
 qualified = dashboard_raw.replace("FROM gold_",  f"FROM {catalog}.{schema}.gold_")
 qualified = qualified.replace("from gold_",      f"from {catalog}.{schema}.gold_")
 
-dashboard_display_name = f"ShopNow Revenue Intelligence — {schema}"
+dashboard_display_name = f"ShopNow Revenue Intelligence - {schema}"
 
 # Idempotent: search for existing dashboard via REST API
 existing_dash_id = None
