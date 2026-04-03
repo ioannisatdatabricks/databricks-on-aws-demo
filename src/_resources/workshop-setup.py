@@ -172,6 +172,11 @@ else:
     resp = w.api_client.do("POST", "/api/2.0/lakeview/dashboards", body=body)
     dashboard_id = resp["dashboard_id"]
     print(f"Created dashboard '{dashboard_display_name}' (id={dashboard_id})")
+    # Re-save via PATCH to ensure the Genie companion space initializes correctly
+    w.api_client.do("PATCH", f"/api/2.0/lakeview/dashboards/{dashboard_id}", body={
+        "serialized_dashboard": qualified,
+    })
+    print("Dashboard re-saved for Genie compatibility.")
 
 try:
     w.api_client.do("POST", f"/api/2.0/lakeview/dashboards/{dashboard_id}/published",
