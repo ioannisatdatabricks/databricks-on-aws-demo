@@ -145,10 +145,7 @@ dashboard_raw = base64.b64decode(export_resp.content).decode("utf-8")
 qualified = dashboard_raw.replace("FROM gold_",  f"FROM {catalog}.{schema}.gold_")
 qualified = qualified.replace("from gold_",      f"from {catalog}.{schema}.gold_")
 
-# Re-serialize compactly (Genie's SQL parser handles compact JSON more reliably)
-qualified = json.dumps(json.loads(qualified))
-
-dashboard_display_name = f"ShopNow Revenue Intelligence ({schema})"
+dashboard_display_name = f"ShopNow Revenue Intelligence — {schema}"
 
 # Idempotent: search for existing dashboard via REST API
 existing_dash_id = None
@@ -176,20 +173,12 @@ else:
     dashboard_id = resp["dashboard_id"]
     print(f"Created dashboard '{dashboard_display_name}' (id={dashboard_id})")
 
-# Publish, then re-save and republish to ensure Genie companion space initializes
 try:
     w.api_client.do("POST", f"/api/2.0/lakeview/dashboards/{dashboard_id}/published",
                     body={"warehouse_id": warehouse_id})
     print("Dashboard published.")
 except Exception as e:
     print(f"Dashboard publish note: {e}")
-
-w.api_client.do("PATCH", f"/api/2.0/lakeview/dashboards/{dashboard_id}", body={
-    "serialized_dashboard": qualified,
-})
-w.api_client.do("POST", f"/api/2.0/lakeview/dashboards/{dashboard_id}/published",
-                body={"warehouse_id": warehouse_id})
-print("Dashboard re-saved and republished for Genie compatibility.")
 
 # COMMAND ----------
 
