@@ -17,15 +17,15 @@ except ImportError:
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog",          "", "Catalog")
-dbutils.widgets.text("schema",           "", "Schema")
+# MAGIC %run ./config
+
+# COMMAND ----------
+
 dbutils.widgets.text("source_path",      "", "App source code path")
 dbutils.widgets.text("agent_endpoint",   "", "Agent serving endpoint name")
 dbutils.widgets.text("lakebase_instance","", "Lakebase Provisioned instance name")
 dbutils.widgets.text("app_name",         "shopnow-ops-hub", "App name")
 
-catalog          = dbutils.widgets.get("catalog")
-schema           = dbutils.widgets.get("schema")
 source_path      = dbutils.widgets.get("source_path")
 agent_endpoint   = dbutils.widgets.get("agent_endpoint")
 lakebase_instance = dbutils.widgets.get("lakebase_instance")

@@ -18,9 +18,7 @@
 
 -- COMMAND ----------
 
--- MAGIC %python
--- MAGIC dbutils.widgets.text("catalog", "main", "Catalog")
--- MAGIC dbutils.widgets.text("schema", "aws_webinar_demo", "Schema")
+-- MAGIC %run ../_resources/config
 
 -- COMMAND ----------
 

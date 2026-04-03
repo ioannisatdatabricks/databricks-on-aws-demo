@@ -3,7 +3,7 @@ bundle:
 
 variables:
   catalog:
-    default: main
+    default: workspace
     description: Unity Catalog catalog name
   schema:
     default: aws_webinar_demo
@@ -20,7 +20,7 @@ targets:
     mode: development
     default: true
     variables:
-      catalog: main
+      catalog: workspace
       schema:  aws_webinar_demo_dev
 
   prod:
@@ -28,7 +28,7 @@ targets:
     workspace:
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.name}/${bundle.target}
     variables:
-      catalog: main
+      catalog: workspace
       schema:  aws_webinar_demo
 
 include:

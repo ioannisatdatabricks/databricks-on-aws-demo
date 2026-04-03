@@ -14,15 +14,7 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog",  "main",             "Catalog")
-dbutils.widgets.text("schema",   "aws_webinar_demo", "Schema")
-dbutils.widgets.text("volume",   "raw_data",         "Volume")
-
-catalog = dbutils.widgets.get("catalog")
-schema  = dbutils.widgets.get("schema")
-volume  = dbutils.widgets.get("volume")
-
-print(f"catalog={catalog}  schema={schema}  volume={volume}")
+# MAGIC %run ./config
 
 # COMMAND ----------
 

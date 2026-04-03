@@ -17,11 +17,9 @@
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "main", "Catalog")
-dbutils.widgets.text("schema",  "aws_webinar_demo", "Schema")
+# MAGIC %run ./config
 
-catalog = dbutils.widgets.get("catalog")
-schema  = dbutils.widgets.get("schema")
+# COMMAND ----------
 
 print(f"Cleaning up resources for: {catalog}.{schema}")
 

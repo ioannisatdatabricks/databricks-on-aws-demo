@@ -33,13 +33,7 @@ except ImportError:
 
 # COMMAND ----------
 
-dbutils.widgets.text("catalog", "main",             "Catalog")
-dbutils.widgets.text("schema",  "aws_webinar_demo", "Schema")
-
-catalog = dbutils.widgets.get("catalog")
-schema  = dbutils.widgets.get("schema")
-
-print(f"Using {catalog}.{schema}")
+# MAGIC %run ../_resources/config
 
 # COMMAND ----------
 
