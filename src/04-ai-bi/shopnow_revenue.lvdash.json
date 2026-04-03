@@ -2,13 +2,13 @@
   "datasets": [
     {
       "name": "revenue_trend",
-      "displayName": "Revenue Trend (Last 90 Days)",
-      "query": "SELECT order_day, SUM(total_revenue) AS revenue, SUM(order_count) AS orders, AVG(avg_order_value) AS avg_order_value FROM gold_revenue_daily WHERE order_day >= DATEADD(DAY, -90, current_date()) GROUP BY order_day ORDER BY order_day"
+      "displayName": "Revenue Trend",
+      "query": "SELECT order_day, SUM(total_revenue) AS revenue, SUM(order_count) AS orders, AVG(avg_order_value) AS avg_order_value FROM gold_revenue_daily GROUP BY order_day ORDER BY order_day"
     },
     {
       "name": "revenue_by_country",
       "displayName": "Revenue by Country",
-      "query": "SELECT ship_country AS country, SUM(total_revenue) AS total_revenue, SUM(order_count) AS total_orders, ROUND(SUM(returns) / NULLIF(SUM(order_count), 0) * 100, 1) AS return_rate_pct FROM gold_revenue_daily GROUP BY ship_country ORDER BY total_revenue DESC"
+      "query": "SELECT ship_country AS country, SUM(total_revenue) AS total_revenue, SUM(order_count) AS total_orders FROM gold_revenue_daily GROUP BY ship_country ORDER BY total_revenue DESC"
     },
     {
       "name": "top_products",
@@ -18,12 +18,12 @@
     {
       "name": "cart_abandonment",
       "displayName": "Cart Abandonment Trend",
-      "query": "SELECT DATE(session_start) AS day, COUNT(*) AS total_sessions, SUM(CASE WHEN abandoned = TRUE THEN 1 ELSE 0 END) AS abandoned_sessions, ROUND(SUM(CASE WHEN abandoned = TRUE THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0) * 100, 1) AS abandonment_rate_pct FROM gold_cart_abandonment GROUP BY DATE(session_start) ORDER BY day"
+      "query": "SELECT DATE(session_start) AS day, COUNT(*) AS total_sessions FROM gold_cart_abandonment GROUP BY DATE(session_start) ORDER BY day"
     },
     {
       "name": "customer_ltv",
       "displayName": "Customer Segment LTV",
-      "query": "SELECT segment, country, COUNT(customer_id) AS customer_count, ROUND(AVG(lifetime_value), 2) AS avg_ltv, ROUND(AVG(total_orders), 1) AS avg_orders, SUM(CASE WHEN is_active = TRUE THEN 1 ELSE 0 END) AS active_customers FROM gold_customer_ltv GROUP BY segment, country ORDER BY avg_ltv DESC"
+      "query": "SELECT segment, country, COUNT(customer_id) AS customer_count, AVG(lifetime_value) AS avg_ltv, AVG(total_orders) AS avg_orders FROM gold_customer_ltv GROUP BY segment, country ORDER BY avg_ltv DESC"
     }
   ],
   "pages": [
@@ -65,9 +65,9 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": { "fieldName": "sum(revenue)", "displayName": "Total Revenue (90d)" }
+                "value": { "fieldName": "sum(revenue)", "displayName": "Total Revenue" }
               },
-              "frame": { "showTitle": true, "title": "Total Revenue (90d)" }
+              "frame": { "showTitle": true, "title": "Total Revenue" }
             }
           }
         },
@@ -91,9 +91,9 @@
               "version": 2,
               "widgetType": "counter",
               "encodings": {
-                "value": { "fieldName": "sum(orders)", "displayName": "Total Orders (90d)" }
+                "value": { "fieldName": "sum(orders)", "displayName": "Total Orders" }
               },
-              "frame": { "showTitle": true, "title": "Total Orders (90d)" }
+              "frame": { "showTitle": true, "title": "Total Orders" }
             }
           }
         },
@@ -149,7 +149,7 @@
                 "y": { "fieldName": "revenue", "scale": { "type": "quantitative" }, "displayName": "Revenue" },
                 "label": { "show": false }
               },
-              "frame": { "showTitle": true, "title": "Revenue Trend (Last 90 Days)" }
+              "frame": { "showTitle": true, "title": "Revenue Trend" }
             }
           }
         },
@@ -173,8 +173,7 @@
                   "fields": [
                     { "name": "country", "expression": "`country`" },
                     { "name": "total_revenue", "expression": "`total_revenue`" },
-                    { "name": "total_orders", "expression": "`total_orders`" },
-                    { "name": "return_rate_pct", "expression": "`return_rate_pct`" }
+                    { "name": "total_orders", "expression": "`total_orders`" }
                   ]
                 }
               }
@@ -186,8 +185,7 @@
                 "columns": [
                   { "fieldName": "country", "displayName": "Country" },
                   { "fieldName": "total_revenue", "displayName": "Total Revenue" },
-                  { "fieldName": "total_orders", "displayName": "Total Orders" },
-                  { "fieldName": "return_rate_pct", "displayName": "Return Rate %" }
+                  { "fieldName": "total_orders", "displayName": "Total Orders" }
                 ]
               },
               "frame": { "showTitle": true, "title": "Revenue by Country" }
@@ -260,7 +258,7 @@
                   "disaggregated": true,
                   "fields": [
                     { "name": "day", "expression": "`day`" },
-                    { "name": "abandonment_rate_pct", "expression": "`abandonment_rate_pct`" }
+                    { "name": "total_sessions", "expression": "`total_sessions`" }
                   ]
                 }
               }
@@ -270,10 +268,10 @@
               "widgetType": "line",
               "encodings": {
                 "x": { "fieldName": "day", "scale": { "type": "temporal" }, "displayName": "Day" },
-                "y": { "fieldName": "abandonment_rate_pct", "scale": { "type": "quantitative" }, "displayName": "Abandonment %" },
+                "y": { "fieldName": "total_sessions", "scale": { "type": "quantitative" }, "displayName": "Sessions" },
                 "label": { "show": false }
               },
-              "frame": { "showTitle": true, "title": "Cart Abandonment Rate Over Time" }
+              "frame": { "showTitle": true, "title": "Daily Cart Sessions" }
             }
           }
         },
@@ -299,8 +297,7 @@
                     { "name": "country", "expression": "`country`" },
                     { "name": "customer_count", "expression": "`customer_count`" },
                     { "name": "avg_ltv", "expression": "`avg_ltv`" },
-                    { "name": "avg_orders", "expression": "`avg_orders`" },
-                    { "name": "active_customers", "expression": "`active_customers`" }
+                    { "name": "avg_orders", "expression": "`avg_orders`" }
                   ]
                 }
               }
@@ -314,8 +311,7 @@
                   { "fieldName": "country", "displayName": "Country" },
                   { "fieldName": "customer_count", "displayName": "Customers" },
                   { "fieldName": "avg_ltv", "displayName": "Avg LTV" },
-                  { "fieldName": "avg_orders", "displayName": "Avg Orders" },
-                  { "fieldName": "active_customers", "displayName": "Active" }
+                  { "fieldName": "avg_orders", "displayName": "Avg Orders" }
                 ]
               },
               "frame": { "showTitle": true, "title": "Customer Segment LTV" }

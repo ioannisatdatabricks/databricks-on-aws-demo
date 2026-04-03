@@ -41,7 +41,6 @@ SELECT
   SUM(order_count)    AS orders,
   AVG(avg_order_value) AS avg_order_value
 FROM ${catalog}.${schema}.gold_revenue_daily
-WHERE order_day >= DATEADD(day, -90, (SELECT MAX(order_day) FROM ${catalog}.${schema}.gold_revenue_daily))
 GROUP BY order_day
 ORDER BY order_day;
 
@@ -55,8 +54,7 @@ ORDER BY order_day;
 SELECT
   ship_country                  AS country,
   SUM(total_revenue)            AS total_revenue,
-  SUM(order_count)              AS total_orders,
-  ROUND(SUM(returns) / NULLIF(SUM(order_count), 0) * 100, 1) AS return_rate_pct
+  SUM(order_count)              AS total_orders
 FROM ${catalog}.${schema}.gold_revenue_daily
 GROUP BY ship_country
 ORDER BY total_revenue DESC;
@@ -89,10 +87,7 @@ LIMIT 10;
 
 SELECT
   DATE(session_start)               AS day,
-  COUNT(*)                           AS total_sessions,
-  SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) AS abandoned_sessions,
-  ROUND(SUM(CASE WHEN abandoned THEN 1 ELSE 0 END) /
-        NULLIF(COUNT(*), 0) * 100, 1)         AS abandonment_rate_pct
+  COUNT(*)                           AS total_sessions
 FROM ${catalog}.${schema}.gold_cart_abandonment
 GROUP BY DATE(session_start)
 ORDER BY day;
@@ -108,9 +103,8 @@ SELECT
   segment,
   country,
   COUNT(customer_id)         AS customer_count,
-  ROUND(AVG(lifetime_value), 2) AS avg_ltv,
-  ROUND(AVG(total_orders), 1)   AS avg_orders,
-  SUM(CASE WHEN is_active THEN 1 ELSE 0 END) AS active_customers
+  AVG(lifetime_value)        AS avg_ltv,
+  AVG(total_orders)          AS avg_orders
 FROM ${catalog}.${schema}.gold_customer_ltv
 GROUP BY segment, country
 ORDER BY avg_ltv DESC;
