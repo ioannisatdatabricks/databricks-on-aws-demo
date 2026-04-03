@@ -48,6 +48,49 @@ except Exception as e:
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC ## 1b — Delete MLflow Experiment Traces and Runs
+
+# COMMAND ----------
+
+import mlflow
+
+client = mlflow.MlflowClient()
+
+try:
+    experiments = client.search_experiments(
+        filter_string="name LIKE '%03-ai-agent/01-agent-creation%'"
+    )
+    for exp in experiments:
+        print(f"Found MLflow experiment: {exp.name} (id={exp.experiment_id})")
+
+        # Delete all traces (autolog traces from agent testing)
+        deleted = client.delete_traces(
+            experiment_id=exp.experiment_id,
+            max_traces=10000,
+        )
+        print(f"  Deleted {deleted} traces")
+
+        # Delete all runs (model logging runs)
+        runs = client.search_runs(experiment_ids=[exp.experiment_id])
+        for run in runs:
+            client.delete_run(run.info.run_id)
+        print(f"  Deleted {len(runs)} runs")
+
+        # Delete the experiment only in DAB mode — Git Folder experiments can't be deleted
+        if "/.bundle/" in (exp.name or ""):
+            client.delete_experiment(exp.experiment_id)
+            print(f"  Deleted experiment: {exp.name}")
+        else:
+            print(f"  Skipped experiment deletion (Git Folder): {exp.name}")
+
+    if not experiments:
+        print("No MLflow experiment found for agent notebook (skipped).")
+except Exception as e:
+    print(f"Error cleaning up MLflow experiment: {e}")
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## 2 — Delete Lakebase Synced Tables and Instance
 
 # COMMAND ----------
