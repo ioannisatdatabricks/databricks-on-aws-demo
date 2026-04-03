@@ -3,7 +3,7 @@
     {
       "name": "revenue_trend",
       "displayName": "Revenue Trend (Last 90 Days)",
-      "query": "SELECT order_day, SUM(total_revenue) AS revenue, SUM(order_count) AS orders, AVG(avg_order_value) AS avg_order_value FROM gold_revenue_daily WHERE order_day >= current_date() - INTERVAL 90 DAYS GROUP BY order_day ORDER BY order_day"
+      "query": "SELECT order_day, SUM(total_revenue) AS revenue, SUM(order_count) AS orders, AVG(avg_order_value) AS avg_order_value FROM gold_revenue_daily WHERE order_day >= DATEADD(DAY, -90, current_date()) GROUP BY order_day ORDER BY order_day"
     },
     {
       "name": "revenue_by_country",
