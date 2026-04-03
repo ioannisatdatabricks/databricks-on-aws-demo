@@ -64,9 +64,10 @@ try:
         print(f"Found MLflow experiment: {exp.name} (id={exp.experiment_id})")
 
         # Delete all traces (autolog traces from agent testing)
+        import time as _time
         deleted = client.delete_traces(
             experiment_id=exp.experiment_id,
-            max_traces=10000,
+            max_timestamp_millis=int(_time.time() * 1000) + 60_000,
         )
         print(f"  Deleted {deleted} traces")
 
