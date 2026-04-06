@@ -86,7 +86,7 @@ LIMIT 10;
 -- Row filter: admins see everything; others see only their country
 CREATE OR REPLACE FUNCTION ${catalog}.${schema}.filter_by_country(ship_country STRING)
 RETURNS BOOLEAN
-RETURN is_member('data_admin') OR ship_country = session_context('x_user_country');
+RETURN is_member('data_admin') OR ship_country = system.builtin.session_context('x_user_country');
 
 ALTER TABLE ${catalog}.${schema}.silver_orders
   SET ROW FILTER ${catalog}.${schema}.filter_by_country ON (ship_country);
