@@ -124,13 +124,14 @@ GRANT ALL PRIVILEGES ON SCHEMA ${catalog}.${schema} TO `data_engineers`;
 
 -- Query lineage system table to see upstream sources of gold_revenue_daily
 SELECT
-  entity_name,
-  entity_type,
-  source_name,
+  target_table_full_name,
+  target_column_name,
+  source_table_full_name,
+  source_column_name,
   source_type
 FROM system.access.column_lineage
-WHERE entity_name LIKE '%gold_revenue_daily%'
-ORDER BY entity_name;
+WHERE target_table_full_name LIKE '%gold_revenue_daily%'
+ORDER BY target_column_name;
 
 -- COMMAND ----------
 
