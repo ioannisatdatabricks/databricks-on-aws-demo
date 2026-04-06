@@ -95,6 +95,10 @@ ALTER TABLE ${catalog}.${schema}.silver_orders
 
 -- MAGIC %md
 -- MAGIC ## 4 — Grant Permissions (Least Privilege)
+-- MAGIC
+-- MAGIC > **Note:** The statements below are illustrative. They will fail if the `analysts` or
+-- MAGIC > `data_engineers` groups do not exist in your workspace. Create them in **Settings → Identity and access**
+-- MAGIC > or skip this cell — it does not affect the rest of the demo.
 
 -- COMMAND ----------
 
