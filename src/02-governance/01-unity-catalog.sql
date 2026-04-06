@@ -22,8 +22,10 @@
 
 -- COMMAND ----------
 
-CREATE WIDGET TEXT catalog DEFAULT 'main';
-CREATE WIDGET TEXT schema DEFAULT 'aws_webinar_demo';
+-- MAGIC %python
+-- MAGIC # Re-assert widgets in this notebook's SQL context (values loaded from config)
+-- MAGIC dbutils.widgets.text("catalog", catalog, "Catalog")
+-- MAGIC dbutils.widgets.text("schema", schema, "Schema")
 
 -- COMMAND ----------
 
